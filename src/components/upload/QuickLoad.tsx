@@ -8,15 +8,6 @@ interface QuickLoadProps {
   disabled?: boolean;
 }
 
-const PART_NAMES: Record<number, string> = {
-  1: "Pratappur Dhanauri", 2: "Pratappur Dhanauri", 3: "Pratappur Dhanauri",
-  4: "Manpur", 5: "Manpur",
-  6: "Karyalay Kashipur", 7: "Karyalay Kashipur",
-  8: "Rampura",
-  9: "Khalsa Kashipur", 10: "Khalsa Kashipur",
-  // ... Parts 11-122 follow the same pattern
-};
-
 export function QuickLoad({ onAddUrls, disabled }: QuickLoadProps) {
   const [from, setFrom] = useState(1);
   const [to, setTo] = useState(122);

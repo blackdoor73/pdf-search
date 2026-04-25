@@ -258,7 +258,6 @@ export function sanitizeFilename(filename: string): string {
       // Remove null bytes
       .replace(/\0/g, "")
       // Remove control characters
-      // eslint-disable-next-line no-control-regex
       .replace(/[\x00-\x1f\x7f]/g, "")
       // Limit length
       .slice(0, 255) || "document.pdf"
@@ -273,7 +272,6 @@ export function sanitizeSearchQuery(query: string): string {
   return query
     .slice(0, MAX_QUERY_LENGTH)
     .replace(/\0/g, "")
-    // eslint-disable-next-line no-control-regex
     .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "")
     .trim();
 }

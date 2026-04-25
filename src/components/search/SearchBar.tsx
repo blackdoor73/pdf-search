@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Search, X, Settings2, ChevronDown, ChevronUp, Clock } from "lucide-react";
+import { Search, X, Settings2, Clock } from "lucide-react";
 import clsx from "clsx";
 import type { SearchOptions, SearchHistoryEntry } from "@/types";
 

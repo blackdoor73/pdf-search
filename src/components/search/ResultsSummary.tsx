@@ -22,8 +22,6 @@ export function ResultsSummary({ searchState }: ResultsSummaryProps) {
       ? ((completedAt - startedAt) / 1000).toFixed(2)
       : null;
 
-  const noMatches = filesWithMatches === 0;
-
   return (
     <div className="flex items-start justify-between gap-4 py-4 border-b border-[var(--border)] flex-wrap">
       {/* Left: match summary */}
@@ -34,7 +32,7 @@ export function ResultsSummary({ searchState }: ResultsSummaryProps) {
           </span>
           <span className="font-mono text-sm text-[var(--text-2)]">
             match{totalMatches !== 1 ? "es" : ""} for{" "}
-            <span className="text-[var(--text)] font-medium">"{query}"</span>
+            <span className="text-[var(--text)] font-medium">&ldquo;{query}&rdquo;</span>
           </span>
         </div>
         {duration && (

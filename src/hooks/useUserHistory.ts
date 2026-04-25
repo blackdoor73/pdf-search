@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { UserHistory, HistoryEntry } from "@/types";
+import type { UserHistory } from "@/types";
 import {
   getFullHistory,
   getUserRepository,

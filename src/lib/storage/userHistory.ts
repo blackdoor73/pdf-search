@@ -174,7 +174,7 @@ export class CookieUserRepository implements IUserRepository {
     this.saveHistory(history);
   }
 
-  async clearHistory(sessionId: string): Promise<void> {
+  async clearHistory(_sessionId: string): Promise<void> {
     deleteCookie(HISTORY_COOKIE);
     deleteCookie(SESSION_COOKIE);
   }
@@ -197,7 +197,6 @@ export function getUserRepository(): IUserRepository {
 // ─── Convenience helpers ───────────────────────────────────────────────────────
 
 export function getFullHistory(): UserHistory | null {
-  const repo = new CookieUserRepository();
   const sessionId = getCookie(SESSION_COOKIE);
   if (!sessionId) return null;
   // Synchronous read for convenience

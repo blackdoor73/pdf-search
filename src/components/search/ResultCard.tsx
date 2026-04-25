@@ -11,7 +11,7 @@ interface ResultCardProps {
   index: number;
 }
 
-export function ResultCard({ result, query, index }: ResultCardProps) {
+export function ResultCard({ result, query: _query, index }: ResultCardProps) {
   const [open, setOpen] = useState(index < 3); // First 3 auto-expanded
   const [copied, setCopied] = useState(false);
 
