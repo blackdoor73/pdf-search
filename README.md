@@ -38,7 +38,7 @@ pdfsearch/
 │   │   │   ├── UploadZone.tsx       # Drag & drop with magic-byte validation
 │   │   │   ├── UrlInput.tsx         # URL input with tooltip + history
 │   │   │   ├── FileList.tsx         # Loaded files display
-│   │   │   └── QuickLoad.tsx        # Kashipur voter list preset
+│   │   │   └── QuickLoad.tsx        # URL pattern quick loader
 │   │   ├── search/
 │   │   │   ├── SearchBar.tsx        # Inline search with history dropdown
 │   │   │   ├── SearchProgress.tsx   # Animated progress bar

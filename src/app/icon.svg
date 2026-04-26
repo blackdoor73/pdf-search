@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <rect width="32" height="32" fill="#f5c542"/>
+  <text
+    x="16"
+    y="16"
+    fill="#000000"
+    font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+    font-size="11"
+    font-weight="700"
+    text-anchor="middle"
+    dominant-baseline="central"
+    letter-spacing="-0.5"
+  >PDF</text>
+</svg>

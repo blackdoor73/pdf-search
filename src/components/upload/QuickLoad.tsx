@@ -8,39 +8,63 @@ interface QuickLoadProps {
   disabled?: boolean;
 }
 
+const MAX_RANGE_SIZE = 200;
+
 export function QuickLoad({ onAddUrls, disabled }: QuickLoadProps) {
+  const [pattern, setPattern] = useState("");
   const [from, setFrom] = useState(1);
-  const [to, setTo] = useState(122);
+  const [to, setTo] = useState(10);
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
 
+  const trimmedPattern = pattern.trim();
+  const hasHttps = trimmedPattern.startsWith("https://");
+  const hasPlaceholder = trimmedPattern.includes("{i}");
+  const isPatternValid = hasHttps && hasPlaceholder;
+  const count = Math.max(0, to - from + 1);
+  const isRangeValid = from >= 1 && to >= from && count <= MAX_RANGE_SIZE;
+  const canSubmit = isPatternValid && isRangeValid && !disabled && !isLoading;
+
+  const showFeedback = (msg: string) => {
+    setFeedback(msg);
+    setTimeout(() => setFeedback(null), 3500);
+  };
+
   const handleLoad = async () => {
-    if (from > to || from < 1 || to > 122) {
-      setFeedback("Invalid range. Must be between 1 and 122.");
-      setTimeout(() => setFeedback(null), 3000);
+    if (!hasHttps) {
+      showFeedback("URL pattern must start with https://");
+      return;
+    }
+    if (!hasPlaceholder) {
+      showFeedback("URL pattern must include the {i} placeholder");
+      return;
+    }
+    if (!isRangeValid) {
+      showFeedback(
+        count > MAX_RANGE_SIZE
+          ? `Range too large (max ${MAX_RANGE_SIZE} URLs at once)`
+          : "Invalid range"
+      );
       return;
     }
 
     const urls: string[] = [];
     for (let i = from; i <= to; i++) {
-      urls.push(
-        `https://www.eci.gov.in/sir/f3/S28/data/OLDSIRROLL/S28/58/S28_58_${i}.pdf`
-      );
+      urls.push(trimmedPattern.replace(/\{i\}/g, String(i)));
     }
 
     setIsLoading(true);
     const { added, skipped } = await onAddUrls(urls);
     setIsLoading(false);
-    setFeedback(
+    showFeedback(
       added > 0
-        ? `${added} URLs queued${skipped.length > 0 ? `, ${skipped.length} skipped` : ""}`
+        ? `${added} URL${added > 1 ? "s" : ""} queued${
+            skipped.length > 0 ? `, ${skipped.length} skipped` : ""
+          }`
         : skipped[0] ?? "Nothing added"
     );
-    setTimeout(() => setFeedback(null), 3500);
   };
-
-  const count = Math.max(0, to - from + 1);
 
   return (
     <div className="border border-[var(--border)] bg-[var(--surface)]">
@@ -55,10 +79,10 @@ export function QuickLoad({ onAddUrls, disabled }: QuickLoadProps) {
             Quick Load
           </span>
           <span className="font-mono text-xs text-[var(--text-2)]">
-            Kashipur 2003 Voter List — ECI Portal
+            Bulk URL pattern loader
           </span>
-          <span className="font-mono text-[10px] text-[var(--text-3)]">
-            122 parts available
+          <span className="font-mono text-[10px] text-[var(--text-3)] hidden sm:inline">
+            use {"{i}"} as the index placeholder
           </span>
         </div>
         <span className="text-[var(--text-3)]">
@@ -74,43 +98,62 @@ export function QuickLoad({ onAddUrls, disabled }: QuickLoadProps) {
       {expanded && (
         <div className="px-4 pb-4 pt-1 border-t border-[var(--border)] space-y-3 animate-slide-in">
           <p className="font-mono text-xs text-[var(--text-3)] leading-relaxed">
-            Directly load part PDFs from the Election Commission of India portal.
-            URLs are proxied securely — files are never stored.
+            Queue a numbered series of PDFs from a URL pattern. Use{" "}
+            <code className="text-[var(--text-2)]">{"{i}"}</code> where the
+            number should appear (e.g.{" "}
+            <code className="text-[var(--text-2)]">
+              https://example.com/report_{"{i}"}.pdf
+            </code>
+            ). URLs are fetched through the secure proxy — files are never
+            stored.
           </p>
+
+          <div>
+            <label className="font-mono text-[10px] text-[var(--text-3)] uppercase tracking-widest block mb-1">
+              URL pattern
+            </label>
+            <input
+              type="text"
+              value={pattern}
+              onChange={(e) => setPattern(e.target.value)}
+              placeholder="https://example.com/files/part_{i}.pdf"
+              disabled={disabled || isLoading}
+              spellCheck={false}
+              className="input-base w-full text-xs py-1.5"
+            />
+          </div>
 
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-2">
               <label className="font-mono text-xs text-[var(--text-3)]">
-                Part
+                From
               </label>
               <input
                 type="number"
                 min={1}
-                max={122}
                 value={from}
                 onChange={(e) =>
-                  setFrom(Math.max(1, Math.min(122, parseInt(e.target.value) || 1)))
+                  setFrom(Math.max(1, parseInt(e.target.value) || 1))
                 }
                 disabled={disabled || isLoading}
-                className="input-base w-16 text-center py-1.5 text-xs"
+                className="input-base w-20 text-center py-1.5 text-xs"
               />
               <label className="font-mono text-xs text-[var(--text-3)]">
                 to
               </label>
               <input
                 type="number"
-                min={1}
-                max={122}
+                min={from}
                 value={to}
                 onChange={(e) =>
-                  setTo(Math.max(1, Math.min(122, parseInt(e.target.value) || 122)))
+                  setTo(Math.max(1, parseInt(e.target.value) || 1))
                 }
                 disabled={disabled || isLoading}
-                className="input-base w-16 text-center py-1.5 text-xs"
+                className="input-base w-20 text-center py-1.5 text-xs"
               />
               {count > 0 && (
                 <span className="font-mono text-[10px] text-[var(--text-3)]">
-                  ({count} PDF{count > 1 ? "s" : ""})
+                  ({count} URL{count > 1 ? "s" : ""})
                 </span>
               )}
             </div>
@@ -118,7 +161,7 @@ export function QuickLoad({ onAddUrls, disabled }: QuickLoadProps) {
             <button
               type="button"
               onClick={handleLoad}
-              disabled={disabled || isLoading || from > to}
+              disabled={!canSubmit}
               className="btn-primary py-1.5"
             >
               {isLoading ? (

@@ -20,7 +20,7 @@ const plexSans = IBM_Plex_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "PDFSearch — Find anything across every PDF",
+  title: "PDFSearch",
   description:
     "Search across multiple PDF files simultaneously. Files are processed in your browser and never stored on any server.",
   robots: "noindex, nofollow",
