@@ -1,22 +1,25 @@
 "use client";
 
 import { useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { ShieldCheck, Download, Keyboard, Zap, Lock, FileText, Search, Globe, CheckCircle } from "lucide-react";
 import { UploadZone } from "@/components/upload/UploadZone";
 import { UrlInput } from "@/components/upload/UrlInput";
-import { FileList } from "@/components/upload/FileList";
-import { QuickLoad } from "@/components/upload/QuickLoad";
 import { SearchBar } from "@/components/search/SearchBar";
-import { SearchProgress } from "@/components/search/SearchProgress";
-import { ResultCard } from "@/components/search/ResultCard";
-import { ResultsSummary } from "@/components/search/ResultsSummary";
-import { PrivacyBadge } from "@/components/ui/PrivacyBadge";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { useSearchEngine } from "@/hooks/useSearchEngine";
 import { useUserHistory } from "@/hooks/useUserHistory";
 import { useToast } from "@/components/ui/Toast";
 import type { SearchResult } from "@/types";
+
+// Lazy-load below-fold and conditional components to reduce initial bundle / TBT
+const FileList = dynamic(() => import("@/components/upload/FileList").then(m => ({ default: m.FileList })));
+const QuickLoad = dynamic(() => import("@/components/upload/QuickLoad").then(m => ({ default: m.QuickLoad })));
+const SearchProgress = dynamic(() => import("@/components/search/SearchProgress").then(m => ({ default: m.SearchProgress })));
+const ResultCard = dynamic(() => import("@/components/search/ResultCard").then(m => ({ default: m.ResultCard })));
+const ResultsSummary = dynamic(() => import("@/components/search/ResultsSummary").then(m => ({ default: m.ResultsSummary })));
+const PrivacyBadge = dynamic(() => import("@/components/ui/PrivacyBadge").then(m => ({ default: m.PrivacyBadge })));
+const EmptyState = dynamic(() => import("@/components/ui/EmptyState").then(m => ({ default: m.EmptyState })));
 
 const faqs = [
   {
