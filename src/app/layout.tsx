@@ -88,6 +88,9 @@ export const metadata: Metadata = {
     creator: "@pdfsearch",
   },
   category: "technology",
+  verification: {
+    google: "tmJl7JqVnRiBV1uktbsNDiswdYYbIBcDMfO1F5AL55c",
+  },
 };
 
 export default function RootLayout({
