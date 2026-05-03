@@ -2,9 +2,26 @@
 const nextConfig = {
   reactStrictMode: true,
 
-  // Security headers applied to every response
+  // Compress responses for better Core Web Vitals
+  compress: true,
+
+  // Power headers and security applied to every response
   async headers() {
     return [
+      {
+        // Long-lived cache for static assets (images, fonts, JS chunks)
+        source: "/_next/static/(.*)",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+      {
+        // Cache SEO pages for 1 hour at CDN edge
+        source: "/(how-to-search-pdf|search-multiple-pdfs|pdf-search-online|search-text-in-pdf|find-words-in-pdf|free-pdf-search-engine|search-scanned-pdf|bulk-pdf-search|blog)(.*)",
+        headers: [
+          { key: "Cache-Control", value: "public, s-maxage=3600, stale-while-revalidate=86400" },
+        ],
+      },
       {
         source: "/(.*)",
         headers: [
@@ -20,7 +37,6 @@ const nextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              // 'unsafe-eval' required by pdf.js worker; cdnjs hosts the worker file
               "script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: https://cdnjs.cloudflare.com",
               "style-src 'self' 'unsafe-inline'",
               "font-src 'self' data:",
