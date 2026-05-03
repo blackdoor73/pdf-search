@@ -22,6 +22,17 @@ const siteUrl = "https://www.pdfsearch.info";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
+  icons: {
+    icon: [
+      { url: "/favicon.png", type: "image/png", sizes: "32x32" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    shortcut: "/favicon.png",
+  },
   title: {
     default: "PDFSearch — Free Online PDF Search Tool | Search Inside PDFs Instantly",
     template: "%s | PDFSearch",
