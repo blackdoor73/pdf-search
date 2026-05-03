@@ -1,4 +1,21 @@
 {
+  "/_not-found/page": "app/_not-found/page.js",
+  "/robots.txt/route": "app/robots.txt/route.js",
+  "/sitemap.xml/route": "app/sitemap.xml/route.js",
   "/icon.svg/route": "app/icon.svg/route.js",
-  "/page": "app/page.js"
+  "/api/proxy-pdf/route": "app/api/proxy-pdf/route.js",
+  "/blog/ctrlf-vs-advanced-pdf-search/page": "app/blog/ctrlf-vs-advanced-pdf-search/page.js",
+  "/blog/best-pdf-search-tools/page": "app/blog/best-pdf-search-tools/page.js",
+  "/bulk-pdf-search/page": "app/bulk-pdf-search/page.js",
+  "/page": "app/page.js",
+  "/how-to-search-pdf/page": "app/how-to-search-pdf/page.js",
+  "/free-pdf-search-engine/page": "app/free-pdf-search-engine/page.js",
+  "/pdf-search-online/page": "app/pdf-search-online/page.js",
+  "/blog/page": "app/blog/page.js",
+  "/search-multiple-pdfs/page": "app/search-multiple-pdfs/page.js",
+  "/search-text-in-pdf/page": "app/search-text-in-pdf/page.js",
+  "/blog/search-multiple-pdfs-online/page": "app/blog/search-multiple-pdfs-online/page.js",
+  "/find-words-in-pdf/page": "app/find-words-in-pdf/page.js",
+  "/search-scanned-pdf/page": "app/search-scanned-pdf/page.js",
+  "/opengraph-image/route": "app/opengraph-image/route.js"
 }

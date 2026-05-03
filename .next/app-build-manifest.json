@@ -1,25 +1,168 @@
 {
   "pages": {
-    "/layout": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/layout.css",
-      "static/chunks/app/layout.js"
-    ],
-    "/error": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/error.js"
+    "/_not-found/page": [
+      "static/chunks/webpack-81c3671d0200caea.js",
+      "static/chunks/0937d497-44abb0f9355ace92.js",
+      "static/chunks/89-6e4b66ab4b11edd9.js",
+      "static/chunks/main-app-e6176cf5a1633c2a.js",
+      "static/chunks/app/_not-found/page-7e911e54c319fc14.js"
     ],
     "/not-found": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/not-found.js"
+      "static/chunks/webpack-81c3671d0200caea.js",
+      "static/chunks/0937d497-44abb0f9355ace92.js",
+      "static/chunks/89-6e4b66ab4b11edd9.js",
+      "static/chunks/main-app-e6176cf5a1633c2a.js",
+      "static/chunks/463-6ae35cdefdc59169.js",
+      "static/chunks/app/not-found-eb1879a1a3514234.js"
+    ],
+    "/layout": [
+      "static/chunks/webpack-81c3671d0200caea.js",
+      "static/chunks/0937d497-44abb0f9355ace92.js",
+      "static/chunks/89-6e4b66ab4b11edd9.js",
+      "static/chunks/main-app-e6176cf5a1633c2a.js",
+      "static/css/95d023af6a76bce8.css",
+      "static/chunks/692-5a316c269eb887c4.js",
+      "static/chunks/app/layout-52734725673bfdec.js"
+    ],
+    "/error": [
+      "static/chunks/webpack-81c3671d0200caea.js",
+      "static/chunks/0937d497-44abb0f9355ace92.js",
+      "static/chunks/89-6e4b66ab4b11edd9.js",
+      "static/chunks/main-app-e6176cf5a1633c2a.js",
+      "static/chunks/app/error-a0d3963fd2a0ab3b.js"
+    ],
+    "/robots.txt/route": [
+      "static/chunks/webpack-81c3671d0200caea.js",
+      "static/chunks/0937d497-44abb0f9355ace92.js",
+      "static/chunks/89-6e4b66ab4b11edd9.js",
+      "static/chunks/main-app-e6176cf5a1633c2a.js",
+      "static/chunks/app/robots.txt/route-7e911e54c319fc14.js"
+    ],
+    "/sitemap.xml/route": [
+      "static/chunks/webpack-81c3671d0200caea.js",
+      "static/chunks/0937d497-44abb0f9355ace92.js",
+      "static/chunks/89-6e4b66ab4b11edd9.js",
+      "static/chunks/main-app-e6176cf5a1633c2a.js",
+      "static/chunks/app/sitemap.xml/route-7e911e54c319fc14.js"
+    ],
+    "/api/proxy-pdf/route": [
+      "static/chunks/webpack-81c3671d0200caea.js",
+      "static/chunks/0937d497-44abb0f9355ace92.js",
+      "static/chunks/89-6e4b66ab4b11edd9.js",
+      "static/chunks/main-app-e6176cf5a1633c2a.js",
+      "static/chunks/app/api/proxy-pdf/route-7e911e54c319fc14.js"
+    ],
+    "/blog/ctrlf-vs-advanced-pdf-search/page": [
+      "static/chunks/webpack-81c3671d0200caea.js",
+      "static/chunks/0937d497-44abb0f9355ace92.js",
+      "static/chunks/89-6e4b66ab4b11edd9.js",
+      "static/chunks/main-app-e6176cf5a1633c2a.js",
+      "static/chunks/463-6ae35cdefdc59169.js",
+      "static/chunks/app/blog/ctrlf-vs-advanced-pdf-search/page-eb1879a1a3514234.js"
+    ],
+    "/blog/best-pdf-search-tools/page": [
+      "static/chunks/webpack-81c3671d0200caea.js",
+      "static/chunks/0937d497-44abb0f9355ace92.js",
+      "static/chunks/89-6e4b66ab4b11edd9.js",
+      "static/chunks/main-app-e6176cf5a1633c2a.js",
+      "static/chunks/463-6ae35cdefdc59169.js",
+      "static/chunks/app/blog/best-pdf-search-tools/page-eb1879a1a3514234.js"
+    ],
+    "/bulk-pdf-search/page": [
+      "static/chunks/webpack-81c3671d0200caea.js",
+      "static/chunks/0937d497-44abb0f9355ace92.js",
+      "static/chunks/89-6e4b66ab4b11edd9.js",
+      "static/chunks/main-app-e6176cf5a1633c2a.js",
+      "static/chunks/463-6ae35cdefdc59169.js",
+      "static/chunks/app/bulk-pdf-search/page-eb1879a1a3514234.js"
     ],
     "/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/page.js"
+      "static/chunks/webpack-81c3671d0200caea.js",
+      "static/chunks/0937d497-44abb0f9355ace92.js",
+      "static/chunks/89-6e4b66ab4b11edd9.js",
+      "static/chunks/main-app-e6176cf5a1633c2a.js",
+      "static/chunks/692-5a316c269eb887c4.js",
+      "static/chunks/144-858c73b9d0e69d91.js",
+      "static/chunks/app/page-e957783dbb35b872.js"
+    ],
+    "/how-to-search-pdf/page": [
+      "static/chunks/webpack-81c3671d0200caea.js",
+      "static/chunks/0937d497-44abb0f9355ace92.js",
+      "static/chunks/89-6e4b66ab4b11edd9.js",
+      "static/chunks/main-app-e6176cf5a1633c2a.js",
+      "static/chunks/463-6ae35cdefdc59169.js",
+      "static/chunks/app/how-to-search-pdf/page-eb1879a1a3514234.js"
+    ],
+    "/free-pdf-search-engine/page": [
+      "static/chunks/webpack-81c3671d0200caea.js",
+      "static/chunks/0937d497-44abb0f9355ace92.js",
+      "static/chunks/89-6e4b66ab4b11edd9.js",
+      "static/chunks/main-app-e6176cf5a1633c2a.js",
+      "static/chunks/463-6ae35cdefdc59169.js",
+      "static/chunks/app/free-pdf-search-engine/page-eb1879a1a3514234.js"
+    ],
+    "/pdf-search-online/page": [
+      "static/chunks/webpack-81c3671d0200caea.js",
+      "static/chunks/0937d497-44abb0f9355ace92.js",
+      "static/chunks/89-6e4b66ab4b11edd9.js",
+      "static/chunks/main-app-e6176cf5a1633c2a.js",
+      "static/chunks/463-6ae35cdefdc59169.js",
+      "static/chunks/app/pdf-search-online/page-eb1879a1a3514234.js"
+    ],
+    "/blog/page": [
+      "static/chunks/webpack-81c3671d0200caea.js",
+      "static/chunks/0937d497-44abb0f9355ace92.js",
+      "static/chunks/89-6e4b66ab4b11edd9.js",
+      "static/chunks/main-app-e6176cf5a1633c2a.js",
+      "static/chunks/463-6ae35cdefdc59169.js",
+      "static/chunks/app/blog/page-eb1879a1a3514234.js"
+    ],
+    "/search-multiple-pdfs/page": [
+      "static/chunks/webpack-81c3671d0200caea.js",
+      "static/chunks/0937d497-44abb0f9355ace92.js",
+      "static/chunks/89-6e4b66ab4b11edd9.js",
+      "static/chunks/main-app-e6176cf5a1633c2a.js",
+      "static/chunks/463-6ae35cdefdc59169.js",
+      "static/chunks/app/search-multiple-pdfs/page-eb1879a1a3514234.js"
+    ],
+    "/search-text-in-pdf/page": [
+      "static/chunks/webpack-81c3671d0200caea.js",
+      "static/chunks/0937d497-44abb0f9355ace92.js",
+      "static/chunks/89-6e4b66ab4b11edd9.js",
+      "static/chunks/main-app-e6176cf5a1633c2a.js",
+      "static/chunks/463-6ae35cdefdc59169.js",
+      "static/chunks/app/search-text-in-pdf/page-eb1879a1a3514234.js"
+    ],
+    "/blog/search-multiple-pdfs-online/page": [
+      "static/chunks/webpack-81c3671d0200caea.js",
+      "static/chunks/0937d497-44abb0f9355ace92.js",
+      "static/chunks/89-6e4b66ab4b11edd9.js",
+      "static/chunks/main-app-e6176cf5a1633c2a.js",
+      "static/chunks/463-6ae35cdefdc59169.js",
+      "static/chunks/app/blog/search-multiple-pdfs-online/page-eb1879a1a3514234.js"
+    ],
+    "/find-words-in-pdf/page": [
+      "static/chunks/webpack-81c3671d0200caea.js",
+      "static/chunks/0937d497-44abb0f9355ace92.js",
+      "static/chunks/89-6e4b66ab4b11edd9.js",
+      "static/chunks/main-app-e6176cf5a1633c2a.js",
+      "static/chunks/463-6ae35cdefdc59169.js",
+      "static/chunks/app/find-words-in-pdf/page-eb1879a1a3514234.js"
+    ],
+    "/search-scanned-pdf/page": [
+      "static/chunks/webpack-81c3671d0200caea.js",
+      "static/chunks/0937d497-44abb0f9355ace92.js",
+      "static/chunks/89-6e4b66ab4b11edd9.js",
+      "static/chunks/main-app-e6176cf5a1633c2a.js",
+      "static/chunks/463-6ae35cdefdc59169.js",
+      "static/chunks/app/search-scanned-pdf/page-eb1879a1a3514234.js"
+    ],
+    "/opengraph-image/route": [
+      "static/chunks/webpack-81c3671d0200caea.js",
+      "static/chunks/0937d497-44abb0f9355ace92.js",
+      "static/chunks/89-6e4b66ab4b11edd9.js",
+      "static/chunks/main-app-e6176cf5a1633c2a.js",
+      "static/chunks/app/opengraph-image/route-7e911e54c319fc14.js"
     ]
   }
 }

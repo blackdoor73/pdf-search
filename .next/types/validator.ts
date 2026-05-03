@@ -47,10 +47,118 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 }
 
 
+// Validate ../../src/app/blog/best-pdf-search-tools/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/blog/best-pdf-search-tools">> = Specific
+  const handler = {} as typeof import("../../src/app/blog/best-pdf-search-tools/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/blog/ctrlf-vs-advanced-pdf-search/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/blog/ctrlf-vs-advanced-pdf-search">> = Specific
+  const handler = {} as typeof import("../../src/app/blog/ctrlf-vs-advanced-pdf-search/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/blog/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/blog">> = Specific
+  const handler = {} as typeof import("../../src/app/blog/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/blog/search-multiple-pdfs-online/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/blog/search-multiple-pdfs-online">> = Specific
+  const handler = {} as typeof import("../../src/app/blog/search-multiple-pdfs-online/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/bulk-pdf-search/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/bulk-pdf-search">> = Specific
+  const handler = {} as typeof import("../../src/app/bulk-pdf-search/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/find-words-in-pdf/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/find-words-in-pdf">> = Specific
+  const handler = {} as typeof import("../../src/app/find-words-in-pdf/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/free-pdf-search-engine/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/free-pdf-search-engine">> = Specific
+  const handler = {} as typeof import("../../src/app/free-pdf-search-engine/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/how-to-search-pdf/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/how-to-search-pdf">> = Specific
+  const handler = {} as typeof import("../../src/app/how-to-search-pdf/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/">> = Specific
   const handler = {} as typeof import("../../src/app/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/pdf-search-online/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/pdf-search-online">> = Specific
+  const handler = {} as typeof import("../../src/app/pdf-search-online/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/search-multiple-pdfs/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/search-multiple-pdfs">> = Specific
+  const handler = {} as typeof import("../../src/app/search-multiple-pdfs/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/search-scanned-pdf/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/search-scanned-pdf">> = Specific
+  const handler = {} as typeof import("../../src/app/search-scanned-pdf/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/search-text-in-pdf/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/search-text-in-pdf">> = Specific
+  const handler = {} as typeof import("../../src/app/search-text-in-pdf/page.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check

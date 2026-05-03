@@ -1,12 +1,13 @@
 {
   "hooks/useSearchEngine.ts -> @/lib/security": {
-    "id": "hooks/useSearchEngine.ts -> @/lib/security",
+    "id": 8505,
     "files": []
   },
   "lib/pdf/engine.ts -> pdfjs-dist": {
-    "id": "lib/pdf/engine.ts -> pdfjs-dist",
+    "id": 3038,
     "files": [
-      "static/chunks/_app-pages-browser_node_modules_pdfjs-dist_build_pdf_mjs.js"
+      "static/chunks/ef85e4da.984fd4333447e20b.js",
+      "static/chunks/324.ab89771b4d182528.js"
     ]
   }
 }

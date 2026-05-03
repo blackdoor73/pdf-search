@@ -1,1 +1,200 @@
-{"version":3,"caseSensitive":false,"basePath":"","rewrites":{"beforeFiles":[],"afterFiles":[],"fallback":[]},"redirects":[{"source":"/:path+/","destination":"/:path+","permanent":true,"internal":true,"regex":"^(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))\\/$"}],"headers":[{"source":"/(.*)","headers":[{"key":"X-Frame-Options","value":"DENY"},{"key":"X-Content-Type-Options","value":"nosniff"},{"key":"X-XSS-Protection","value":"1; mode=block"},{"key":"Referrer-Policy","value":"strict-origin-when-cross-origin"},{"key":"Permissions-Policy","value":"camera=(), microphone=(), geolocation=(), interest-cohort=()"},{"key":"Content-Security-Policy","value":"default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; worker-src 'self' blob: https://cdnjs.cloudflare.com; connect-src 'self' https://cdnjs.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"}],"regex":"^(?:\\/(.*))(?:\\/)?$"}]}
+{
+  "version": 3,
+  "pages404": true,
+  "caseSensitive": false,
+  "basePath": "",
+  "redirects": [
+    {
+      "source": "/:path+/",
+      "destination": "/:path+",
+      "internal": true,
+      "statusCode": 308,
+      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/_next/static/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ],
+      "regex": "^/_next/static(?:/(.*))(?:/)?$"
+    },
+    {
+      "source": "/(how-to-search-pdf|search-multiple-pdfs|pdf-search-online|search-text-in-pdf|find-words-in-pdf|free-pdf-search-engine|search-scanned-pdf|bulk-pdf-search|blog)(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, s-maxage=3600, stale-while-revalidate=86400"
+        }
+      ],
+      "regex": "^(?:/(how-to-search-pdf|search-multiple-pdfs|pdf-search-online|search-text-in-pdf|find-words-in-pdf|free-pdf-search-engine|search-scanned-pdf|bulk-pdf-search|blog))(.*)(?:/)?$"
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; worker-src 'self' blob: https://cdnjs.cloudflare.com; connect-src 'self' https://cdnjs.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        }
+      ],
+      "regex": "^(?:/(.*))(?:/)?$"
+    }
+  ],
+  "rewrites": {
+    "beforeFiles": [],
+    "afterFiles": [],
+    "fallback": []
+  },
+  "dynamicRoutes": [],
+  "staticRoutes": [
+    {
+      "page": "/",
+      "regex": "^/(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/(?:/)?$"
+    },
+    {
+      "page": "/_not-found",
+      "regex": "^/_not\\-found(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_not\\-found(?:/)?$"
+    },
+    {
+      "page": "/blog",
+      "regex": "^/blog(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/blog(?:/)?$"
+    },
+    {
+      "page": "/blog/best-pdf-search-tools",
+      "regex": "^/blog/best\\-pdf\\-search\\-tools(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/blog/best\\-pdf\\-search\\-tools(?:/)?$"
+    },
+    {
+      "page": "/blog/ctrlf-vs-advanced-pdf-search",
+      "regex": "^/blog/ctrlf\\-vs\\-advanced\\-pdf\\-search(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/blog/ctrlf\\-vs\\-advanced\\-pdf\\-search(?:/)?$"
+    },
+    {
+      "page": "/blog/search-multiple-pdfs-online",
+      "regex": "^/blog/search\\-multiple\\-pdfs\\-online(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/blog/search\\-multiple\\-pdfs\\-online(?:/)?$"
+    },
+    {
+      "page": "/bulk-pdf-search",
+      "regex": "^/bulk\\-pdf\\-search(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/bulk\\-pdf\\-search(?:/)?$"
+    },
+    {
+      "page": "/find-words-in-pdf",
+      "regex": "^/find\\-words\\-in\\-pdf(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/find\\-words\\-in\\-pdf(?:/)?$"
+    },
+    {
+      "page": "/free-pdf-search-engine",
+      "regex": "^/free\\-pdf\\-search\\-engine(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/free\\-pdf\\-search\\-engine(?:/)?$"
+    },
+    {
+      "page": "/how-to-search-pdf",
+      "regex": "^/how\\-to\\-search\\-pdf(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/how\\-to\\-search\\-pdf(?:/)?$"
+    },
+    {
+      "page": "/icon.svg",
+      "regex": "^/icon\\.svg(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/icon\\.svg(?:/)?$"
+    },
+    {
+      "page": "/opengraph-image",
+      "regex": "^/opengraph\\-image(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/opengraph\\-image(?:/)?$"
+    },
+    {
+      "page": "/pdf-search-online",
+      "regex": "^/pdf\\-search\\-online(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/pdf\\-search\\-online(?:/)?$"
+    },
+    {
+      "page": "/robots.txt",
+      "regex": "^/robots\\.txt(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/robots\\.txt(?:/)?$"
+    },
+    {
+      "page": "/search-multiple-pdfs",
+      "regex": "^/search\\-multiple\\-pdfs(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/search\\-multiple\\-pdfs(?:/)?$"
+    },
+    {
+      "page": "/search-scanned-pdf",
+      "regex": "^/search\\-scanned\\-pdf(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/search\\-scanned\\-pdf(?:/)?$"
+    },
+    {
+      "page": "/search-text-in-pdf",
+      "regex": "^/search\\-text\\-in\\-pdf(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/search\\-text\\-in\\-pdf(?:/)?$"
+    },
+    {
+      "page": "/sitemap.xml",
+      "regex": "^/sitemap\\.xml(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/sitemap\\.xml(?:/)?$"
+    }
+  ],
+  "dataRoutes": [],
+  "rsc": {
+    "header": "rsc",
+    "varyHeader": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+    "prefetchHeader": "next-router-prefetch",
+    "didPostponeHeader": "x-nextjs-postponed",
+    "contentTypeHeader": "text/x-component",
+    "suffix": ".rsc",
+    "prefetchSuffix": ".prefetch.rsc",
+    "prefetchSegmentHeader": "next-router-segment-prefetch",
+    "prefetchSegmentSuffix": ".segment.rsc",
+    "prefetchSegmentDirSuffix": ".segments"
+  },
+  "rewriteHeaders": {
+    "pathHeader": "x-nextjs-rewritten-path",
+    "queryHeader": "x-nextjs-rewritten-query"
+  }
+}

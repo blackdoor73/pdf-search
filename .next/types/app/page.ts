@@ -1,4 +1,4 @@
-// File: /Users/yashagarwal/Desktop/Code_Dev/pdfsearch/src/app/page.tsx
+// File: /Users/yashagarwal/Desktop/Code_Dev/pdfsearch/.claude/worktrees/tender-curran-edd0cd/src/app/page.tsx
 import * as entry from '../../../src/app/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
