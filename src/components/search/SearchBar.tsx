@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Search, X, Settings2, Clock } from "lucide-react";
 import clsx from "clsx";
 import type { SearchOptions, SearchHistoryEntry } from "@/types";
@@ -27,39 +27,90 @@ export function SearchBar({
   const [query, setQuery] = useState("");
   const [showOptions, setShowOptions] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  // Keyboard-highlighted item in the history dropdown (-1 = none)
+  const [activeIndex, setActiveIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const handleSubmit = () => {
-    if (!query.trim() || !canSearch) return;
-    setShowHistory(false);
-    onSearch(query.trim());
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") handleSubmit();
-    if (e.key === "Escape") {
-      if (isSearching) onCancel();
-      else setQuery("");
-    }
-    if (e.key === "ArrowDown" && recentSearches.length > 0) {
-      setShowHistory(true);
-    }
-  };
-
-  const handleHistorySelect = (q: string) => {
-    setQuery(q);
-    setShowHistory(false);
-    inputRef.current?.focus();
-  };
+  const comboRef = useRef<HTMLDivElement>(null);
 
   const filteredHistory = recentSearches
     .filter((s) => !query || s.query.toLowerCase().includes(query.toLowerCase()))
     .slice(0, 6);
 
+  const closeHistory = () => {
+    setShowHistory(false);
+    setActiveIndex(-1);
+  };
+
+  // Close on click/tap outside. onBlur is unreliable here: iOS Safari does
+  // not blur inputs when tapping non-focusable elements, which left the
+  // dropdown stuck open on top of the page content.
+  useEffect(() => {
+    if (!showHistory) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (comboRef.current && !comboRef.current.contains(e.target as Node)) {
+        closeHistory();
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [showHistory]);
+
+  const handleSubmit = (q?: string) => {
+    const value = (q ?? query).trim();
+    if (!value || !canSearch) return;
+    closeHistory();
+    onSearch(value);
+  };
+
+  const handleHistorySelect = (q: string) => {
+    setQuery(q);
+    closeHistory();
+    inputRef.current?.focus();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      if (showHistory && activeIndex >= 0 && filteredHistory[activeIndex]) {
+        e.preventDefault();
+        handleHistorySelect(filteredHistory[activeIndex].query);
+        return;
+      }
+      handleSubmit();
+      return;
+    }
+    if (e.key === "Escape") {
+      if (showHistory) closeHistory();
+      else if (isSearching) onCancel();
+      else setQuery("");
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      if (filteredHistory.length === 0) return;
+      e.preventDefault();
+      if (!showHistory) {
+        setShowHistory(true);
+        setActiveIndex(0);
+      } else {
+        setActiveIndex((i) => (i + 1) % filteredHistory.length);
+      }
+      return;
+    }
+    if (e.key === "ArrowUp" && showHistory) {
+      e.preventDefault();
+      setActiveIndex((i) =>
+        i <= 0 ? filteredHistory.length - 1 : i - 1
+      );
+      return;
+    }
+    if (e.key === "Tab" && showHistory) {
+      closeHistory();
+    }
+  };
+
   return (
     <div className="space-y-2">
-      {/* Main search row */}
-      <div className="relative">
+      {/* Main search row — comboRef wraps input + dropdown for outside-click detection */}
+      <div className="relative" ref={comboRef}>
         <div
           className={clsx(
             "flex border transition-colors duration-150",
@@ -91,6 +142,7 @@ export function SearchBar({
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
+              setActiveIndex(-1);
               if (e.target.value && recentSearches.length > 0) {
                 setShowHistory(true);
               } else {
@@ -101,7 +153,6 @@ export function SearchBar({
             onFocus={() => {
               if (recentSearches.length > 0 && !query) setShowHistory(true);
             }}
-            onBlur={() => setTimeout(() => setShowHistory(false), 150)}
             placeholder={
               canSearch
                 ? "Enter name, number, or any text to search..."
@@ -115,6 +166,13 @@ export function SearchBar({
             )}
             aria-label="Search query"
             autoComplete="off"
+            role="combobox"
+            aria-expanded={showHistory && filteredHistory.length > 0}
+            aria-controls="search-history-listbox"
+            aria-autocomplete="list"
+            aria-activedescendant={
+              activeIndex >= 0 ? `search-history-option-${activeIndex}` : undefined
+            }
           />
 
           {/* Clear button */}
@@ -123,6 +181,7 @@ export function SearchBar({
               type="button"
               onClick={() => {
                 setQuery("");
+                closeHistory();
                 inputRef.current?.focus();
               }}
               className="px-3 text-[var(--text-3)] hover:text-[var(--text-2)] transition-colors"
@@ -134,7 +193,10 @@ export function SearchBar({
           {/* Options toggle */}
           <button
             type="button"
-            onClick={() => setShowOptions((s) => !s)}
+            onClick={() => {
+              closeHistory();
+              setShowOptions((s) => !s);
+            }}
             className={clsx(
               "px-3 border-l border-[var(--border)] transition-colors",
               showOptions
@@ -149,7 +211,7 @@ export function SearchBar({
           {/* Search / Cancel button */}
           <button
             type="button"
-            onClick={isSearching ? onCancel : handleSubmit}
+            onClick={isSearching ? onCancel : () => handleSubmit()}
             disabled={!isSearching && (!canSearch || !query.trim())}
             className={clsx(
               "shrink-0 px-6 font-mono text-sm font-semibold tracking-wide transition-colors border-l border-[var(--border)]",
@@ -164,10 +226,16 @@ export function SearchBar({
           </button>
         </div>
 
-        {/* History dropdown */}
+        {/* History dropdown — z-50 keeps it above sibling sections whose
+            entry animations (opacity < 1) create their own stacking contexts */}
         {showHistory && filteredHistory.length > 0 && (
-          <div className="absolute top-full left-0 right-0 z-40 bg-[var(--surface2)] border border-[var(--border)] border-t-0 shadow-xl">
-            <div className="px-3 py-1.5 border-b border-[var(--border)] flex items-center gap-1.5">
+          <div
+            id="search-history-listbox"
+            role="listbox"
+            aria-label="Recent searches"
+            className="absolute top-full left-0 right-0 z-50 bg-[var(--surface2)] border border-[var(--border2)] shadow-xl max-h-72 overflow-y-auto"
+          >
+            <div className="px-3 py-1.5 border-b border-[var(--border)] flex items-center gap-1.5 sticky top-0 bg-[var(--surface2)]">
               <Clock className="w-3 h-3 text-[var(--text-3)]" />
               <span className="font-mono text-[10px] text-[var(--text-3)] uppercase tracking-widest">
                 Recent searches
@@ -175,12 +243,19 @@ export function SearchBar({
             </div>
             {filteredHistory.map((entry, i) => (
               <button
-                key={i}
+                key={entry.query}
+                id={`search-history-option-${i}`}
                 type="button"
-                onMouseDown={() => handleHistorySelect(entry.query)}
-                className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-[var(--surface)] transition-colors group"
+                role="option"
+                aria-selected={i === activeIndex}
+                onClick={() => handleHistorySelect(entry.query)}
+                onMouseEnter={() => setActiveIndex(i)}
+                className={clsx(
+                  "w-full flex items-center justify-between px-4 py-2.5 transition-colors group",
+                  i === activeIndex ? "bg-[var(--surface)]" : "hover:bg-[var(--surface)]"
+                )}
               >
-                <span className="font-mono text-sm text-[var(--text-2)] group-hover:text-[var(--text)] truncate">
+                <span className="font-mono text-sm text-[var(--text-2)] group-hover:text-[var(--text)] truncate text-left">
                   {entry.query}
                 </span>
                 <span className="font-mono text-[10px] text-[var(--text-3)] shrink-0 ml-4">

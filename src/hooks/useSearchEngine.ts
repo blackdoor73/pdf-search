@@ -24,6 +24,7 @@ import {
   getUserRepository,
   getOrCreateSessionId,
 } from "@/lib/storage/userHistory";
+import { track } from "@/lib/analytics/client";
 
 // ─── Initial state ─────────────────────────────────────────────────────────────
 
@@ -80,6 +81,7 @@ export function useSearchEngine() {
         const validation = await validatePdfFile(file);
         if (!validation.valid) {
           skipped.push(`${file.name} (${validation.error})`);
+          track("pdf_load_error", { code: validation.error ?? "validation_failed" });
           continue;
         }
 
@@ -110,6 +112,9 @@ export function useSearchEngine() {
       if (toAdd.length > 0) {
         setFiles((prev) => [...prev, ...toAdd]);
         setTotalSizeBytes((prev) => prev + addedSize);
+
+        // Anonymous telemetry: counts and sizes only — never content or names
+        track("pdf_upload", { count: toAdd.length, totalBytes: addedSize });
 
         // Persist to history (filenames only, no content)
         const repo = getUserRepository();
@@ -180,6 +185,8 @@ export function useSearchEngine() {
 
       if (toAdd.length > 0) {
         setFiles((prev) => [...prev, ...toAdd]);
+
+        track("pdf_url_added", { count: toAdd.length });
 
         // Persist URL history
         const repo = getUserRepository();
@@ -276,6 +283,13 @@ export function useSearchEngine() {
           completedAt: Date.now(),
         });
 
+        track("search", {
+          q: safeQuery,
+          matches: totalMatches,
+          files: results.length,
+          durationMs: Date.now() - (searchState.startedAt ?? Date.now()),
+        });
+
         // Persist search to history
         const repo = getUserRepository();
         const sessionId = getOrCreateSessionId();
@@ -286,6 +300,9 @@ export function useSearchEngine() {
         });
       } catch (err) {
         if (abortController.current.signal.aborted) return;
+        track("search_error", {
+          message: (err instanceof Error ? err.message : "Search failed").slice(0, 200),
+        });
         setSearchState((prev) => ({
           ...prev,
           status: "error",

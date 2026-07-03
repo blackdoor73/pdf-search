@@ -1,0 +1,117 @@
+/**
+ * Telemetry ingestion endpoint.
+ *
+ * Accepts batched anonymous events from the client tracker (fetch or
+ * sendBeacon). Enriches with country (Vercel geo header) and a coarse
+ * device/browser parse, then bulk-inserts into Neon.
+ *
+ * Design constraints:
+ * - Always responds 204 — never leaks validation details to callers.
+ * - No-ops gracefully when DATABASE_URL is unset.
+ * - Per-IP in-memory rate limit (best-effort on serverless; the batch cap
+ *   and payload cap are the hard limits).
+ */
+
+import { NextRequest } from "next/server";
+import { trackBatchSchema, MAX_QUERY_LEN } from "@/lib/analytics/events";
+import { ensureSchema, getSql, isDbConfigured } from "@/lib/db";
+
+export const runtime = "nodejs";
+
+const MAX_BODY_BYTES = 32 * 1024;
+const RATE_LIMIT_PER_MIN = 240;
+
+const ipHits = new Map<string, { count: number; windowStart: number }>();
+
+function rateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = ipHits.get(ip);
+  if (!entry || now - entry.windowStart > 60_000) {
+    ipHits.set(ip, { count: 1, windowStart: now });
+    if (ipHits.size > 5000) ipHits.clear(); // memory guard
+    return false;
+  }
+  entry.count++;
+  return entry.count > RATE_LIMIT_PER_MIN;
+}
+
+function parseUa(ua: string): { device: string; browser: string } {
+  const device = /iPad|Tablet/i.test(ua)
+    ? "tablet"
+    : /Mobi|Android|iPhone/i.test(ua)
+    ? "mobile"
+    : "desktop";
+  const browser = /Edg\//.test(ua)
+    ? "Edge"
+    : /OPR\/|Opera/.test(ua)
+    ? "Opera"
+    : /SamsungBrowser/.test(ua)
+    ? "Samsung Internet"
+    : /Firefox\//.test(ua)
+    ? "Firefox"
+    : /Chrome\//.test(ua)
+    ? "Chrome"
+    : /Safari\//.test(ua)
+    ? "Safari"
+    : "Other";
+  return { device, browser };
+}
+
+const NO_CONTENT = new Response(null, { status: 204 });
+
+export async function POST(req: NextRequest) {
+  try {
+    if (!isDbConfigured()) return NO_CONTENT;
+
+    const len = Number(req.headers.get("content-length") ?? 0);
+    if (len > MAX_BODY_BYTES) return NO_CONTENT;
+
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    if (rateLimited(ip)) return NO_CONTENT;
+
+    // sendBeacon may deliver as text/plain — parse manually.
+    const raw = await req.text();
+    if (raw.length > MAX_BODY_BYTES) return NO_CONTENT;
+
+    const parsed = trackBatchSchema.safeParse(JSON.parse(raw));
+    if (!parsed.success) return NO_CONTENT;
+    const batch = parsed.data;
+
+    const country = req.headers.get("x-vercel-ip-country") ?? null;
+    const { device, browser } = parseUa(req.headers.get("user-agent") ?? "");
+
+    const now = Date.now();
+    const tsArr: string[] = [];
+    const eventArr: string[] = [];
+    const propsArr: string[] = [];
+    for (const ev of batch.events) {
+      // Clamp client timestamps to [now - 10min, now] against clock skew.
+      const ts =
+        ev.ts && ev.ts <= now && ev.ts > now - 10 * 60_000 ? ev.ts : now;
+      tsArr.push(new Date(ts).toISOString());
+      eventArr.push(ev.e);
+      const props = { ...ev.props };
+      if (typeof props.q === "string") props.q = props.q.slice(0, MAX_QUERY_LEN);
+      propsArr.push(JSON.stringify(props));
+    }
+
+    await ensureSchema();
+    const sql = getSql();
+    await sql`
+      INSERT INTO events (ts, anon_id, session_id, event, page, referrer, country, device, browser, props)
+      SELECT ts, ${batch.aid}, ${batch.sid}, event, ${batch.page ?? null},
+             ${batch.ref ?? null}, ${country}, ${device}, ${browser}, props
+      FROM unnest(
+        ${tsArr}::timestamptz[],
+        ${eventArr}::text[],
+        ${propsArr}::jsonb[]
+      ) AS t(ts, event, props)
+    `;
+
+    return NO_CONTENT;
+  } catch {
+    // Ingestion failures must never propagate to users.
+    return NO_CONTENT;
+  }
+}
