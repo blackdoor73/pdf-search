@@ -16,6 +16,15 @@ export const metadata: Metadata = {
   },
 };
 
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: "https://www.pdfsearch.info" },
+    { "@type": "ListItem", position: 2, name: "Free PDF Search Engine", item: "https://www.pdfsearch.info/free-pdf-search-engine" },
+  ],
+};
+
 const faqSchema = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
@@ -96,7 +105,7 @@ export default function FreePdfSearchEnginePage() {
             "Yes. Paste any public HTTPS PDF URL and PDFSearch will fetch and index the document for you to search — no manual download needed.",
         },
       ]}
-      schemaMarkup={faqSchema}
+      schemaMarkup={[faqSchema, breadcrumbSchema]}
     />
   );
 }

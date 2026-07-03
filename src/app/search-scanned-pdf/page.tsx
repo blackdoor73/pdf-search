@@ -16,6 +16,15 @@ export const metadata: Metadata = {
   },
 };
 
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: "https://www.pdfsearch.info" },
+    { "@type": "ListItem", position: 2, name: "Search Scanned PDF", item: "https://www.pdfsearch.info/search-scanned-pdf" },
+  ],
+};
+
 const faqSchema = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
@@ -96,7 +105,7 @@ export default function SearchScannedPdfPage() {
             "Google Drive's built-in OCR (upload PDF → open with Google Docs) is free and works well for most documents. OCRmyPDF is a free command-line tool for batch processing. Adobe Acrobat has a paid 'Make Searchable PDF' feature with higher accuracy.",
         },
       ]}
-      schemaMarkup={faqSchema}
+      schemaMarkup={[faqSchema, breadcrumbSchema]}
     />
   );
 }

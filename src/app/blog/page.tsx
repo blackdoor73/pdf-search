@@ -52,14 +52,15 @@ export default function BlogPage() {
     <div className="min-h-screen bg-[var(--bg)] grid-bg">
       <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur-sm">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-3 shrink-0" aria-label="PDFSearch home">
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          <a href="/" className="flex items-center gap-3 shrink-0" aria-label="Reload PDFSearch home">
             <div className="w-7 h-7 bg-[var(--accent)] flex items-center justify-center">
               <span className="font-mono text-[10px] font-bold text-black tracking-tight">PDF</span>
             </div>
             <span className="font-mono text-base font-semibold text-[var(--text)]">
               Search<span className="text-[var(--accent)]">.</span>
             </span>
-          </Link>
+          </a>
           <div className="flex items-center gap-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-[var(--green)]" />
             <span className="hidden sm:inline font-mono text-xs text-[var(--text-3)]">Files never stored</span>

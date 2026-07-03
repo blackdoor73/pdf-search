@@ -55,6 +55,15 @@ const howToSchema = {
   ],
 };
 
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: "https://www.pdfsearch.info" },
+    { "@type": "ListItem", position: 2, name: "How to Search a PDF", item: "https://www.pdfsearch.info/how-to-search-pdf" },
+  ],
+};
+
 const faqSchema = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
@@ -143,7 +152,7 @@ export default function HowToSearchPdfPage() {
             "No. PDFSearch is completely anonymous — no signup, no login, no email required. Just open the tool and start searching.",
         },
       ]}
-      schemaMarkup={[howToSchema, faqSchema] as unknown as object}
+      schemaMarkup={[howToSchema, faqSchema, breadcrumbSchema]}
     />
   );
 }
