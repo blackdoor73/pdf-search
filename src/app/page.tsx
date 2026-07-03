@@ -2,6 +2,7 @@
 
 import { useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { ShieldCheck, Download, Keyboard, Zap, Lock, FileText, Search, Globe, CheckCircle } from "lucide-react";
 import { UploadZone } from "@/components/upload/UploadZone";
 import { UrlInput } from "@/components/upload/UrlInput";
@@ -10,6 +11,8 @@ import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { useSearchEngine } from "@/hooks/useSearchEngine";
 import { useUserHistory } from "@/hooks/useUserHistory";
 import { useToast } from "@/components/ui/Toast";
+import { track } from "@/lib/analytics/client";
+import { homepageFaqSchema, homepageHowToSchema } from "./seo-schemas";
 import type { SearchResult } from "@/types";
 
 // Lazy-load below-fold and conditional components to reduce initial bundle / TBT
@@ -148,6 +151,7 @@ export default function HomePage() {
         );
       }
     }
+    track("export_csv", { rows: rows.length - 1 });
     const blob = new Blob([rows.join("\n")], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -175,13 +179,49 @@ export default function HomePage() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  // ── First-visit onboarding tip (shown once per browser) ─────────────────
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (localStorage.getItem("pdfsearch:onboarded")) return;
+    // Defer slightly so it doesn't fight initial render
+    const t = window.setTimeout(() => {
+      toast.info("Tip: drop a PDF anywhere · press ⌘K to focus search");
+      localStorage.setItem("pdfsearch:onboarded", "1");
+    }, 800);
+    return () => window.clearTimeout(t);
+  }, [toast]);
+
   return (
     <div className="min-h-screen bg-[var(--bg)] grid-bg">
+      {/* ── Homepage-only JSON-LD schemas (FAQ + HowTo) ── */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageFaqSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageHowToSchema) }}
+      />
+
+      {/* ── Skip-to-content (accessibility) ── */}
+      <a
+        href="#hero-heading"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:bg-[var(--accent)] focus:text-black focus:px-3 focus:py-2 focus:font-mono focus:text-xs"
+      >
+        Skip to content
+      </a>
 
       {/* ── Header ── */}
       <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur-sm">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 shrink-0">
+          {/* Intentional full-page reload on logo click — bypass Next.js Link prefetch */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          <a
+            href="/"
+            className="flex items-center gap-3 shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
+            aria-label="Reload PDFSearch home"
+            title="Click to reload"
+          >
             <div className="w-7 h-7 bg-[var(--accent)] flex items-center justify-center">
               <span className="font-mono text-[10px] font-bold text-black tracking-tight">
                 PDF
@@ -190,7 +230,7 @@ export default function HomePage() {
             <span className="font-mono text-base font-semibold text-[var(--text)]">
               Search<span className="text-[var(--accent)]">.</span>
             </span>
-          </div>
+          </a>
 
           <nav aria-label="Site navigation" className="flex items-center gap-4">
             <div className="hidden md:flex items-center gap-1.5">
@@ -223,10 +263,17 @@ export default function HomePage() {
             <br />
             instantly. Free.
           </h1>
-          <p className="font-sans text-sm text-[var(--text-2)] max-w-xl leading-relaxed mb-4">
+          <p className="font-sans text-sm text-[var(--text-2)] max-w-xl leading-relaxed mb-3">
             The best free PDF search tool online. Upload files or paste URLs — search across{" "}
             <strong className="text-[var(--text)]">hundreds of PDFs simultaneously</strong> with
             full-text search. 100% private: nothing ever leaves your browser.
+          </p>
+          <p className="font-sans text-xs text-[var(--text-3)] max-w-xl leading-relaxed mb-4">
+            Whether you need to{" "}
+            <strong className="text-[var(--text-2)]">search in PDF</strong> files,{" "}
+            <strong className="text-[var(--text-2)]">search data in PDF</strong> reports, or
+            run a quick <strong className="text-[var(--text-2)]">PDF search</strong> across
+            multiple documents — PDFSearch handles it instantly in your browser.
           </p>
           <div className="flex flex-wrap gap-2">
             {[
@@ -248,7 +295,18 @@ export default function HomePage() {
 
         {/* 01 — Load PDFs */}
         <section aria-labelledby="load-heading" className="space-y-3 animate-slide-in stagger-2">
-          <div className="section-label" id="load-heading">01 — Load PDFs</div>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="section-label" id="load-heading" style={{ marginBottom: 0 }}>01 — Load PDFs</div>
+            <button
+              type="button"
+              onClick={() => handleAddUrls(["https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"])}
+              disabled={isSearching}
+              className="font-mono text-[10px] text-[var(--accent)] hover:underline disabled:opacity-50 disabled:no-underline"
+              title="Load a small public PDF to try the search"
+            >
+              Try with a sample PDF →
+            </button>
+          </div>
           <ErrorBoundary>
             <UploadZone onFiles={handleAddFiles} disabled={isSearching} />
           </ErrorBoundary>
@@ -479,6 +537,38 @@ export default function HomePage() {
                   {faq.answer}
                 </p>
               </details>
+            ))}
+          </div>
+        </section>
+
+        {/* ── More PDF tools (internal linking for SEO) ── */}
+        <section aria-labelledby="related-heading" className="animate-slide-in pt-4">
+          <h2 id="related-heading" className="font-mono text-xl font-semibold text-[var(--text)] mb-2">
+            More PDF search tools
+          </h2>
+          <p className="font-sans text-xs text-[var(--text-2)] mb-6 leading-relaxed">
+            Specialized guides and tools for every PDF search use case.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {[
+              { href: "/search-multiple-pdfs", title: "Search multiple PDFs at once", desc: "Bulk search across hundreds of PDFs in one query." },
+              { href: "/search-scanned-pdf", title: "Search scanned PDFs (OCR)", desc: "Find text in image-only and scanned PDF documents." },
+              { href: "/search-text-in-pdf", title: "Search text in PDF online", desc: "Free online PDF text search with full-text highlighting." },
+              { href: "/find-words-in-pdf", title: "Find words in PDF", desc: "Locate specific words or phrases inside any PDF." },
+              { href: "/bulk-pdf-search", title: "Bulk PDF search", desc: "Upload and search large batches of PDFs in your browser." },
+              { href: "/free-pdf-search-engine", title: "Free PDF search engine", desc: "100% free PDF search engine — no signup, no limits." },
+              { href: "/pdf-search-online", title: "PDF search online", desc: "Fastest online PDF search tool, fully browser-based." },
+              { href: "/how-to-search-pdf", title: "How to search a PDF", desc: "Step-by-step guide to searching inside any PDF." },
+              { href: "/blog", title: "PDF search blog", desc: "Tips, comparisons, and tutorials for power users." },
+            ].map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className="card p-4 hover:border-[var(--accent)] transition-colors block"
+              >
+                <h3 className="font-mono text-xs font-semibold text-[var(--text)] mb-1">{l.title}</h3>
+                <p className="font-sans text-[11px] text-[var(--text-2)] leading-relaxed">{l.desc}</p>
+              </Link>
             ))}
           </div>
         </section>

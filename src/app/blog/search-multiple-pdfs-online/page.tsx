@@ -35,6 +35,16 @@ const articleSchema = {
   mainEntityOfPage: "https://www.pdfsearch.info/blog/search-multiple-pdfs-online",
 };
 
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: "https://www.pdfsearch.info" },
+    { "@type": "ListItem", position: 2, name: "Blog", item: "https://www.pdfsearch.info/blog" },
+    { "@type": "ListItem", position: 3, name: "How to Search Across Multiple PDFs Instantly", item: "https://www.pdfsearch.info/blog/search-multiple-pdfs-online" },
+  ],
+};
+
 export default function SearchMultiplePdfsBlogPost() {
   return (
     <div className="min-h-screen bg-[var(--bg)] grid-bg">
@@ -42,17 +52,22 @@ export default function SearchMultiplePdfsBlogPost() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
       />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
 
       <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur-sm">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-3 shrink-0">
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          <a href="/" className="flex items-center gap-3 shrink-0" aria-label="Reload PDFSearch home">
             <div className="w-7 h-7 bg-[var(--accent)] flex items-center justify-center">
               <span className="font-mono text-[10px] font-bold text-black">PDF</span>
             </div>
             <span className="font-mono text-base font-semibold text-[var(--text)]">
               Search<span className="text-[var(--accent)]">.</span>
             </span>
-          </Link>
+          </a>
           <div className="flex items-center gap-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-[var(--green)]" />
             <span className="hidden sm:inline font-mono text-xs text-[var(--text-3)]">Files never stored</span>

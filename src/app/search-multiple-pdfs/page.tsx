@@ -16,6 +16,15 @@ export const metadata: Metadata = {
   },
 };
 
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: "https://www.pdfsearch.info" },
+    { "@type": "ListItem", position: 2, name: "Search Multiple PDFs", item: "https://www.pdfsearch.info/search-multiple-pdfs" },
+  ],
+};
+
 const faqSchema = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
@@ -104,7 +113,7 @@ export default function SearchMultiplePdfsPage() {
             "Yes. PDFSearch is designed for large-scale document search. Load your entire PDF collection and search all of them at once — ideal for document-heavy workflows.",
         },
       ]}
-      schemaMarkup={faqSchema}
+      schemaMarkup={[faqSchema, breadcrumbSchema]}
     />
   );
 }

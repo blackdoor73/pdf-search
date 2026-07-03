@@ -16,6 +16,15 @@ export const metadata: Metadata = {
   },
 };
 
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: "https://www.pdfsearch.info" },
+    { "@type": "ListItem", position: 2, name: "Find Words in PDF", item: "https://www.pdfsearch.info/find-words-in-pdf" },
+  ],
+};
+
 const faqSchema = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
@@ -96,7 +105,7 @@ export default function FindWordsInPdfPage() {
             "Yes. Load multiple PDFs and run your search — PDFSearch will find the word in all loaded documents and show you which file and page each match is on.",
         },
       ]}
-      schemaMarkup={faqSchema}
+      schemaMarkup={[faqSchema, breadcrumbSchema]}
     />
   );
 }

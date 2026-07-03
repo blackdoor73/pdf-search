@@ -16,6 +16,15 @@ export const metadata: Metadata = {
   },
 };
 
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: "https://www.pdfsearch.info" },
+    { "@type": "ListItem", position: 2, name: "Search Text in PDF", item: "https://www.pdfsearch.info/search-text-in-pdf" },
+  ],
+};
+
 const faqSchema = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
@@ -104,7 +113,7 @@ export default function SearchTextInPdfPage() {
             "PDFSearch requires PDFs with embedded text. Scanned PDFs that are image-only won't return results unless they were saved with a text layer (e.g., using OCR software).",
         },
       ]}
-      schemaMarkup={faqSchema}
+      schemaMarkup={[faqSchema, breadcrumbSchema]}
     />
   );
 }
