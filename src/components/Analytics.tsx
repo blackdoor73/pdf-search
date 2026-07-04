@@ -13,7 +13,7 @@ import { useEffect } from "react";
 import Script from "next/script";
 import { usePathname } from "next/navigation";
 import { useReportWebVitals } from "next/web-vitals";
-import { track, trackSessionStart } from "@/lib/analytics/client";
+import { track } from "@/lib/analytics/client";
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
@@ -21,7 +21,8 @@ export function Analytics() {
   const pathname = usePathname();
 
   useEffect(() => {
-    trackSessionStart();
+    // session_start is emitted automatically by the tracker whenever an
+    // event opens a new 30-min-inactivity session — no per-tab bookkeeping.
     track("page_view", { path: pathname ?? "/" });
     if (GA_ID && typeof window.gtag === "function") {
       window.gtag("config", GA_ID, { page_path: pathname });

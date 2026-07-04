@@ -12,12 +12,14 @@ import { ensureSchema, isDbConfigured } from "@/lib/db";
 import {
   clampDays,
   getAlerts,
+  getFirstPartySources,
   getFunnel,
   getOverview,
   getProduct,
   getRealtime,
   getRetention,
   getSystem,
+  getVisitorsDebug,
 } from "@/lib/admin/queries";
 
 export const runtime = "nodejs";
@@ -49,6 +51,10 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ configured: true, ...(await getFunnel(days)) });
       case "alerts":
         return NextResponse.json({ configured: true, alerts: await getAlerts() });
+      case "sources":
+        return NextResponse.json({ configured: true, sources: await getFirstPartySources(days) });
+      case "visitors":
+        return NextResponse.json({ configured: true, visitors: await getVisitorsDebug() });
       default:
         return NextResponse.json({ error: `Unknown section: ${section}` }, { status: 400 });
     }

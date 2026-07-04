@@ -86,18 +86,27 @@ tracks usage; prune with
 
 ## Event taxonomy
 
+Every event carries a client-generated UUID (idempotency key — retries can't
+double-count) plus anon/session ids per the identity model in
+[ANALYTICS_AUDIT.md](ANALYTICS_AUDIT.md). Bots and admin visits are dropped
+at ingestion.
+
 | Event | Props | Fired from |
 |---|---|---|
-| `session_start` | landing, tz, lang | Analytics.tsx (once per tab) |
+| `session_start` | landing, ref, utm_source/medium/campaign/content, tz, lang | tracker, when a new 30-min-inactivity session opens |
 | `page_view` | path | Analytics.tsx (route changes) |
 | `pdf_upload` | count, totalBytes | useSearchEngine.addFiles |
 | `pdf_url_added` | count | useSearchEngine.addUrls |
 | `pdf_load_error` | code | validation failures |
-| `search` | q, matches, files, durationMs | useSearchEngine.search |
+| `search` | q*, qLen, matches, files, pages, durationMs | useSearchEngine.search |
 | `search_error` | message | search failures |
 | `export_csv` | rows | results export |
 | `client_error` | message, source | window error/rejection handlers |
 | `web_vital` | name, value, rating | useReportWebVitals |
+
+\* `q` (raw search text) is stripped at ingestion when
+`TRACK_SEARCH_TERMS=false`; `qLen` and match counts always remain.
+`TRACK_ADMIN_TRAFFIC=true` re-includes your own admin-authenticated visits.
 
 ## CSV exports
 

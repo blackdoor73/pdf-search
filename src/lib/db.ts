@@ -74,4 +74,11 @@ async function migrate(): Promise<void> {
   await sql`CREATE INDEX IF NOT EXISTS events_ts_idx ON events (ts DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS events_event_ts_idx ON events (event, ts DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS events_anon_ts_idx ON events (anon_id, ts)`;
+  // Idempotency key: client-generated event UUID. Nullable so legacy rows
+  // remain valid; the partial unique index backs ON CONFLICT DO NOTHING.
+  await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS event_id TEXT`;
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS events_event_id_key
+    ON events (event_id) WHERE event_id IS NOT NULL
+  `;
 }

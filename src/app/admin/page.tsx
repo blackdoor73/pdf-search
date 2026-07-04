@@ -66,10 +66,25 @@ export default function AdminOverviewPage() {
       {alertsData?.alerts && <AlertsBanner alerts={alertsData.alerts} />}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Active now" value={fmtNum(k.active_now)} accent="green" sub="last 5 min" />
+        <StatCard label="Active now" value={fmtNum(k.active_now)} accent="green" sub="unique visitors · 5 min" />
         <StatCard label="DAU" value={fmtNum(k.dau)} sub="today" />
         <StatCard label="WAU" value={fmtNum(k.wau)} sub="last 7 days" />
         <StatCard label="MAU" value={fmtNum(k.mau)} sub="last 30 days" />
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard label="New users" value={fmtNum(k.new_users_30d)} sub="first seen · 30 days" />
+        <StatCard label="Returning users" value={fmtNum(k.returning_users_30d)} sub="30 days" />
+        <StatCard
+          label="Stickiness"
+          value={k.mau > 0 ? `${Math.round((k.dau / k.mau) * 100)}%` : "—"}
+          sub="DAU / MAU"
+        />
+        <StatCard
+          label="Avg session"
+          value={k.avg_session_sec > 0 ? `${Math.round(k.avg_session_sec)}s` : "—"}
+          sub={`${Math.round(k.engaged_rate * 100)}% engaged · 30 days`}
+        />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

@@ -42,6 +42,45 @@ const VITAL_BUDGETS: Record<string, { good: number; unit: "ms" | "score" }> = {
   FCP: { good: 1800, unit: "ms" },
 };
 
+interface VisitorsData {
+  configured: boolean;
+  visitors: {
+    visitor: string;
+    firstSeen: string;
+    lastSeen: string;
+    events: number;
+    sessions: number;
+    device: string;
+    browser: string;
+    country: string;
+  }[];
+}
+
+/** Ground truth for identity counting — one row per anon_id, straight from
+ *  the events table, so dashboard numbers can be verified against raw data. */
+function RecentVisitorsPanel() {
+  const { data } = useAdminData<VisitorsData>("/api/admin/stats?section=visitors");
+  if (!data?.configured) return null;
+  return (
+    <Panel title="Recent visitors (raw anon_ids — identity ground truth)">
+      <DataTable
+        headers={["Visitor", "First seen", "Last seen", "Events", "Sessions", "Device", "Browser", "Geo"]}
+        align={["l", "l", "l", "r", "r", "l", "l", "l"]}
+        rows={(data.visitors ?? []).map((v) => [
+          `${v.visitor}…`,
+          v.firstSeen,
+          v.lastSeen,
+          v.events,
+          v.sessions,
+          v.device,
+          v.browser,
+          v.country,
+        ])}
+      />
+    </Panel>
+  );
+}
+
 function HealthRow({ label, ok, detail }: { label: string; ok: boolean; detail: string }) {
   return (
     <div className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0">
@@ -177,6 +216,8 @@ export default function AdminSystemPage() {
           />
         </Panel>
       </div>
+
+      <RecentVisitorsPanel />
 
       <p className="font-mono text-[10px] text-[var(--text-3)] leading-relaxed">
         Note: PDFSearch processes PDFs entirely in users&apos; browsers — there are no

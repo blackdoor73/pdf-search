@@ -29,6 +29,7 @@ interface ProductData {
   pdfsUploaded: number;
   avgUploadsPerUser: number | null;
   avgFilesPerSearch: number;
+  pagesScanned: number;
   searchesPerSession: number | null;
   uploadsPerHour: { hour: string; uploads: number; searches: number }[];
   topTerms: { term: string; searches: number; withResults: number; avgMatches: number }[];
@@ -86,7 +87,12 @@ export default function AdminProductPage() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Searches" value={fmtNum(data.searches)} accent="blue" sub={`${days} days`} />
+        <StatCard
+          label="Searches"
+          value={fmtNum(data.searches)}
+          accent="blue"
+          sub={`${fmtNum(data.pagesScanned)} pages scanned · ${days} days`}
+        />
         <StatCard
           label="Search success rate"
           value={fmtPct(data.searchSuccessRate)}
