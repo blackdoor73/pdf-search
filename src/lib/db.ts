@@ -34,11 +34,24 @@ let _schemaReady: Promise<void> | null = null;
 export function ensureSchema(): Promise<void> {
   if (!_schemaReady) {
     _schemaReady = migrate().catch((err) => {
+      if (isConcurrentMigrationRace(err)) return; // table now exists — a racing request just finished it
       _schemaReady = null; // allow retry on next request
       throw err;
     });
   }
   return _schemaReady;
+}
+
+/**
+ * Postgres's `CREATE TABLE/INDEX IF NOT EXISTS` isn't safe under concurrent
+ * DDL: two callers can both see "doesn't exist" and race to create it. The
+ * loser gets a catalog unique-violation (classically on pg_type, since every
+ * table implicitly registers a row type there) even though the object it
+ * wanted now exists. That's a false failure — safe to swallow.
+ */
+function isConcurrentMigrationRace(err: unknown): boolean {
+  const code = (err as { code?: string } | undefined)?.code;
+  return code === "23505" || code === "42P07" || code === "42710";
 }
 
 async function migrate(): Promise<void> {
