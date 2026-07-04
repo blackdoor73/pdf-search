@@ -335,8 +335,13 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* 02 — Search */}
-        <section aria-labelledby="search-heading" className="space-y-3 animate-slide-in stagger-3">
+        {/* 02 — Search
+            relative z-10 lifts this section's stacking context above later
+            sibling sections: animate-slide-in's fill-forwards opacity
+            animation makes every section a permanent stacking context, so
+            without this the history dropdown (z-50, scoped to this section)
+            paints underneath the privacy badge / results sections. */}
+        <section aria-labelledby="search-heading" className="relative z-10 space-y-3 animate-slide-in stagger-3">
           <div className="section-label" id="search-heading">02 — Search</div>
           <SearchBar
             onSearch={search}
