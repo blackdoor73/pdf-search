@@ -28,7 +28,7 @@ export async function getOverview(days: number) {
       count(DISTINCT anon_id) FILTER (WHERE ts >= date_trunc('day', now()))          AS dau,
       count(DISTINCT anon_id) FILTER (WHERE ts > now() - interval '7 days')          AS wau,
       count(DISTINCT anon_id) FILTER (WHERE ts > now() - interval '30 days')         AS mau,
-      count(DISTINCT session_id) FILTER (WHERE ts > now() - interval '5 minutes')    AS active_now,
+      count(DISTINCT anon_id) FILTER (WHERE ts > now() - interval '5 minutes')       AS active_now,
       count(DISTINCT anon_id)                                                        AS lifetime_users,
       count(*) FILTER (WHERE event = 'page_view' AND ts > now() - interval '30 days') AS pageviews_30d,
       count(DISTINCT session_id) FILTER (WHERE ts > now() - interval '30 days')      AS sessions_30d,
@@ -40,6 +40,30 @@ export async function getOverview(days: number) {
       count(*) FILTER (WHERE event = 'search' AND ts > now() - interval '30 days')   AS searches_30d,
       count(*) FILTER (WHERE event = 'search')                                       AS searches_lifetime
     FROM events
+  `) as Row[];
+
+  // New vs returning: a "new" user's first-ever event falls inside the window.
+  const [firsts] = (await sql`
+    SELECT count(*) AS new_users_30d
+    FROM (SELECT anon_id, min(ts) AS first_seen FROM events GROUP BY anon_id) f
+    WHERE f.first_seen > now() - interval '30 days'
+  `) as Row[];
+
+  // Session quality (30d): duration = event span within a session;
+  // engaged = more than one pageview or any product action.
+  const [sessionStats] = (await sql`
+    SELECT
+      avg(dur_sec)  AS avg_session_sec,
+      count(*) FILTER (WHERE engaged)::float / nullif(count(*), 0) AS engaged_rate
+    FROM (
+      SELECT
+        extract(epoch FROM max(ts) - min(ts)) AS dur_sec,
+        (count(*) FILTER (WHERE event = 'page_view') > 1
+         OR count(*) FILTER (WHERE event IN ('pdf_upload','pdf_url_added','search','export_csv')) > 0) AS engaged
+      FROM events
+      WHERE ts > now() - interval '30 days'
+      GROUP BY session_id
+    ) s
   `) as Row[];
 
   const series = (await sql`
@@ -60,8 +84,17 @@ export async function getOverview(days: number) {
     ORDER BY d.day
   `) as Row[];
 
+  const mau = num(kpis?.mau);
+  const newUsers30d = num(firsts?.new_users_30d);
+
   return {
-    kpis: Object.fromEntries(Object.entries(kpis ?? {}).map(([k, v]) => [k, num(v)])),
+    kpis: {
+      ...Object.fromEntries(Object.entries(kpis ?? {}).map(([k, v]) => [k, num(v)])),
+      new_users_30d: newUsers30d,
+      returning_users_30d: Math.max(0, mau - newUsers30d),
+      avg_session_sec: num(sessionStats?.avg_session_sec),
+      engaged_rate: num(sessionStats?.engaged_rate),
+    },
     series: series.map((r) => ({
       date: String(r.date),
       visitors: num(r.visitors),
@@ -90,7 +123,8 @@ export async function getProduct(days: number) {
       coalesce(sum((props->>'count')::int) FILTER (WHERE event = 'pdf_upload'), 0)   AS pdfs_uploaded,
       count(DISTINCT anon_id) FILTER (WHERE event = 'pdf_upload')                    AS uploading_users,
       count(DISTINCT session_id)                                                     AS sessions,
-      avg((props->>'files')::int) FILTER (WHERE event = 'search')                    AS avg_files_per_search
+      avg((props->>'files')::int) FILTER (WHERE event = 'search')                    AS avg_files_per_search,
+      coalesce(sum((props->>'pages')::int) FILTER (WHERE event = 'search'), 0)       AS pages_scanned
     FROM events
     WHERE ts > now() - make_interval(days => ${days})
   `) as Row[];
@@ -151,6 +185,7 @@ export async function getProduct(days: number) {
       ? num(agg?.pdfs_uploaded) / num(agg?.uploading_users)
       : null,
     avgFilesPerSearch: num(agg?.avg_files_per_search),
+    pagesScanned: num(agg?.pages_scanned),
     searchesPerSession: num(agg?.sessions) ? searches / num(agg?.sessions) : null,
     uploadsPerHour: uploadsPerHour.map((r) => ({
       hour: String(r.hour),
@@ -308,7 +343,7 @@ export async function getRealtime() {
 
   const [now] = (await sql`
     SELECT
-      count(DISTINCT session_id) FILTER (WHERE ts > now() - interval '5 minutes')  AS active_now,
+      count(DISTINCT anon_id) FILTER (WHERE ts > now() - interval '5 minutes')     AS active_now,
       count(*) FILTER (WHERE ts > now() - interval '60 minutes')                    AS events_1h,
       coalesce(sum((props->>'count')::int)
         FILTER (WHERE event = 'pdf_upload' AND ts > now() - interval '60 minutes'), 0) AS uploads_1h,
@@ -365,6 +400,63 @@ export async function getRealtime() {
       detail: String(r.detail ?? ""),
     })),
   };
+}
+
+// ─── First-party acquisition (session_start referrer/UTM) ────────────────────
+
+export async function getFirstPartySources(days: number) {
+  const sql = getSql();
+  const rows = (await sql`
+    SELECT
+      CASE
+        WHEN coalesce(props->>'utm_source', '') <> ''
+          THEN 'utm: ' || (props->>'utm_source')
+          || CASE WHEN coalesce(props->>'utm_medium','') <> '' THEN ' / ' || (props->>'utm_medium') ELSE '' END
+        WHEN coalesce(referrer, '') = '' THEN 'direct'
+        ELSE regexp_replace(referrer, '^https?://([^/]+).*$', '\1')
+      END AS source,
+      count(*) AS sessions,
+      count(DISTINCT anon_id) AS visitors
+    FROM events
+    WHERE event = 'session_start' AND ts > now() - make_interval(days => ${days})
+    GROUP BY 1 ORDER BY 2 DESC LIMIT 15
+  `) as Row[];
+  return rows.map((r) => ({
+    source: String(r.source),
+    sessions: num(r.sessions),
+    visitors: num(r.visitors),
+  }));
+}
+
+// ─── Raw visitors (System page — verify identity counting against the DB) ────
+
+export async function getVisitorsDebug() {
+  const sql = getSql();
+  const rows = (await sql`
+    SELECT
+      left(anon_id, 8) AS visitor,
+      to_char(min(ts), 'MM-DD HH24:MI') AS first_seen,
+      to_char(max(ts), 'MM-DD HH24:MI') AS last_seen,
+      count(*) AS events,
+      count(DISTINCT session_id) AS sessions,
+      max(device) AS device,
+      max(browser) AS browser,
+      coalesce(max(country), '') AS country
+    FROM events
+    GROUP BY anon_id
+    ORDER BY max(ts) DESC
+    LIMIT 25
+  `) as Row[];
+  return rows.map((r) => ({
+    visitor: String(r.visitor),
+    firstSeen: String(r.first_seen),
+    lastSeen: String(r.last_seen),
+    events: num(r.events),
+    sessions: num(r.sessions),
+    device: String(r.device ?? ""),
+    browser: String(r.browser ?? ""),
+    country: String(r.country ?? ""),
+  }));
 }
 
 // ─── Funnel (Growth Insights) ─────────────────────────────────────────────────

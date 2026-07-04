@@ -1,22 +1,26 @@
 /**
  * Client-side telemetry tracker.
  *
- * - Batches events in memory and flushes every few seconds (or on tab hide)
- *   via navigator.sendBeacon so it never blocks the UI or delays unload.
- * - Anonymous by design: reuses the existing pdfsearch_session cookie UUID
- *   as the anonymous ID; a per-tab session ID lives in sessionStorage.
- * - Respects Do Not Track / Global Privacy Control.
+ * - Batches events in memory and flushes every few seconds (or on tab
+ *   hide) via navigator.sendBeacon — never blocks the UI, never delays
+ *   PDF processing or search.
+ * - Identity comes from src/lib/analytics/identity.ts: one anonymous id
+ *   per browser, one 30-min-inactivity session shared across tabs.
+ * - Every event carries a client-generated UUID; the server inserts with
+ *   ON CONFLICT DO NOTHING, so beacon/fetch retries can never
+ *   double-count.
+ * - Skips known automation (navigator.webdriver) and honors DNT/GPC.
  * - Fails silently — analytics must never break the product.
  */
 
-import { getOrCreateSessionId } from "@/lib/storage/userHistory";
+import { getIdentity } from "./identity";
 import { MAX_QUERY_LEN, type EventName, type EventProps } from "./events";
 
-const TAB_SESSION_KEY = "pdfsearch_tab_session";
 const FLUSH_INTERVAL_MS = 4000;
 const MAX_QUEUE = 25;
 
 interface QueuedEvent {
+  id: string;
   e: EventName;
   ts: number;
   props: EventProps;
@@ -33,20 +37,27 @@ function isBrowser(): boolean {
 function optedOut(): boolean {
   if (!isBrowser()) return true;
   const nav = navigator as Navigator & { globalPrivacyControl?: boolean };
-  return nav.doNotTrack === "1" || nav.globalPrivacyControl === true;
+  // webdriver: Puppeteer/Selenium/etc. — automation isn't a user.
+  return nav.doNotTrack === "1" || nav.globalPrivacyControl === true || nav.webdriver === true;
 }
 
-function getTabSessionId(): string {
+function sessionStartProps(): EventProps {
+  const props: EventProps = {
+    landing: location.pathname.slice(0, 256),
+    tz: Intl.DateTimeFormat().resolvedOptions().timeZone ?? "",
+    lang: navigator.language ?? "",
+  };
+  // First-party acquisition attribution.
   try {
-    let sid = sessionStorage.getItem(TAB_SESSION_KEY);
-    if (!sid) {
-      sid = crypto.randomUUID();
-      sessionStorage.setItem(TAB_SESSION_KEY, sid);
+    const params = new URLSearchParams(location.search);
+    for (const key of ["utm_source", "utm_medium", "utm_campaign", "utm_content"]) {
+      const v = params.get(key);
+      if (v) props[key] = v.slice(0, 100);
     }
-    return sid;
   } catch {
-    return "no-session-storage";
+    // Malformed query string — attribution is best-effort.
   }
+  return props;
 }
 
 function flush(useBeacon = false): void {
@@ -54,9 +65,10 @@ function flush(useBeacon = false): void {
   const events = queue.splice(0, MAX_QUEUE);
   queue = [];
 
+  const ident = getIdentity();
   const body = JSON.stringify({
-    aid: getOrCreateSessionId(),
-    sid: getTabSessionId(),
+    aid: ident.aid,
+    sid: ident.sid,
     page: location.pathname.slice(0, 256),
     ref: document.referrer.slice(0, 512) || undefined,
     events,
@@ -100,30 +112,24 @@ export function track(event: EventName, props: EventProps = {}): void {
   if (!isBrowser() || optedOut()) return;
   bindLifecycleListeners();
 
+  // Session detection happens at event time: if this event opens a new
+  // session, record session_start first so ordering is always correct.
+  const ident = getIdentity();
+  if (ident.sessionIsNew) {
+    queue.push({
+      id: crypto.randomUUID(),
+      e: "session_start",
+      ts: Date.now(),
+      props: sessionStartProps(),
+    });
+  }
+
   // Defensive truncation of any search query text.
   if (typeof props.q === "string") {
     props = { ...props, q: props.q.slice(0, MAX_QUERY_LEN) };
   }
 
-  queue.push({ e: event, ts: Date.now(), props });
+  queue.push({ id: crypto.randomUUID(), e: event, ts: Date.now(), props });
   if (queue.length >= MAX_QUEUE) flush();
   else scheduleFlush();
-}
-
-/** Fired once per tab session; safe to call repeatedly. */
-export function trackSessionStart(): void {
-  if (!isBrowser() || optedOut()) return;
-  try {
-    const KEY = "pdfsearch_session_started";
-    if (sessionStorage.getItem(KEY)) return;
-    sessionStorage.setItem(KEY, "1");
-    track("session_start", {
-      landing: location.pathname.slice(0, 256),
-      tz: Intl.DateTimeFormat().resolvedOptions().timeZone ?? "",
-      lang: navigator.language ?? "",
-    });
-  } catch {
-    // sessionStorage unavailable (private mode) — skip dedupe, still track.
-    track("session_start", { landing: location.pathname.slice(0, 256) });
-  }
 }

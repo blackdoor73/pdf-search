@@ -32,6 +32,9 @@ export type EventName = (typeof EVENT_NAMES)[number];
 export type EventProps = Record<string, string | number | boolean>;
 
 export const trackedEventSchema = z.object({
+  /** Client-generated UUID — the idempotency key. Retried beacons or
+   *  fetches insert with ON CONFLICT DO NOTHING and cannot double-count. */
+  id: z.string().uuid().optional(),
   e: z.enum(EVENT_NAMES),
   /** Client timestamp (ms epoch). Server clamps to a sane window. */
   ts: z.number().int().positive().optional(),

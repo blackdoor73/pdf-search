@@ -50,6 +50,25 @@ interface GscData {
   queries: { key: string; clicks: number; impressions: number; ctr: number; position: number }[];
 }
 
+interface SourcesData {
+  configured: boolean;
+  sources: { source: string; sessions: number; visitors: number }[];
+}
+
+function FirstPartySourcesPanel({ days }: { days: number }) {
+  const { data } = useAdminData<SourcesData>(`/api/admin/stats?section=sources&days=${days}`);
+  if (!data?.configured) return null;
+  return (
+    <Panel title="First-party sources (own telemetry — bot-filtered)">
+      <DataTable
+        headers={["Source", "Sessions", "Visitors"]}
+        align={["l", "r", "r"]}
+        rows={(data.sources ?? []).map((s) => [s.source, fmtNum(s.sessions), fmtNum(s.visitors)])}
+      />
+    </Panel>
+  );
+}
+
 export default function AdminTrafficPage() {
   const [days, setDays] = useState(30);
   const { data, error, loading } = useAdminData<TrafficData>(`/api/admin/traffic?days=${days}`);
@@ -66,6 +85,8 @@ export default function AdminTrafficPage() {
           envVars={data.required ?? []}
           docsAnchor="ga4"
         />
+        {/* First-party telemetry works without GA4 */}
+        <FirstPartySourcesPanel days={days} />
       </div>
     );
   }
@@ -140,6 +161,8 @@ export default function AdminTrafficPage() {
           />
         </Panel>
       </div>
+
+      <FirstPartySourcesPanel days={days} />
 
       <Panel title="Search keywords (Google Search Console)">
         {gsc && !gsc.configured ? (

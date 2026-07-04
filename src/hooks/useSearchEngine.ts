@@ -287,6 +287,7 @@ export function useSearchEngine() {
           q: safeQuery,
           matches: totalMatches,
           files: results.length,
+          pages: results.reduce((sum, r) => sum + (r.totalPages || 0), 0),
           durationMs: Date.now() - (searchState.startedAt ?? Date.now()),
         });
 

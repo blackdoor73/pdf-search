@@ -5,6 +5,18 @@
  * sendBeacon). Enriches with country (Vercel geo header) and a coarse
  * device/browser parse, then bulk-inserts into Neon.
  *
+ * Accuracy filters (see docs/ANALYTICS_AUDIT.md):
+ * - Bots/crawlers dropped by UA — Googlebot renders JS and would otherwise
+ *   mint a fresh "user" on every crawl.
+ * - Admin traffic dropped when a valid admin session cookie accompanies
+ *   the request (override with TRACK_ADMIN_TRAFFIC=true), so checking the
+ *   dashboard doesn't inflate the dashboard.
+ * - Idempotent: client event UUIDs + ON CONFLICT DO NOTHING, so beacon
+ *   retries never double-count.
+ *
+ * Privacy: set TRACK_SEARCH_TERMS=false to strip raw search query text at
+ * ingestion; query length + match counts are always kept.
+ *
  * Design constraints:
  * - Always responds 204 — never leaks validation details to callers.
  * - No-ops gracefully when DATABASE_URL is unset.
@@ -14,6 +26,8 @@
 
 import { NextRequest } from "next/server";
 import { trackBatchSchema, MAX_QUERY_LEN } from "@/lib/analytics/events";
+import { isBotUserAgent } from "@/lib/analytics/bots";
+import { ADMIN_COOKIE, verifySessionToken } from "@/lib/admin/auth";
 import { ensureSchema, getSql, isDbConfigured } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -57,11 +71,26 @@ function parseUa(ua: string): { device: string; browser: string } {
   return { device, browser };
 }
 
+async function isAdminTraffic(req: NextRequest): Promise<boolean> {
+  if (process.env.TRACK_ADMIN_TRAFFIC === "true") return false;
+  const token = req.cookies.get(ADMIN_COOKIE)?.value;
+  if (!token) return false;
+  try {
+    return await verifySessionToken(token);
+  } catch {
+    return false;
+  }
+}
+
 const NO_CONTENT = new Response(null, { status: 204 });
 
 export async function POST(req: NextRequest) {
   try {
     if (!isDbConfigured()) return NO_CONTENT;
+
+    const ua = req.headers.get("user-agent") ?? "";
+    if (isBotUserAgent(ua)) return NO_CONTENT;
+    if (await isAdminTraffic(req)) return NO_CONTENT;
 
     const len = Number(req.headers.get("content-length") ?? 0);
     if (len > MAX_BODY_BYTES) return NO_CONTENT;
@@ -79,9 +108,11 @@ export async function POST(req: NextRequest) {
     const batch = parsed.data;
 
     const country = req.headers.get("x-vercel-ip-country") ?? null;
-    const { device, browser } = parseUa(req.headers.get("user-agent") ?? "");
+    const { device, browser } = parseUa(ua);
+    const keepSearchTerms = process.env.TRACK_SEARCH_TERMS !== "false";
 
     const now = Date.now();
+    const idArr: (string | null)[] = [];
     const tsArr: string[] = [];
     const eventArr: string[] = [];
     const propsArr: string[] = [];
@@ -89,24 +120,31 @@ export async function POST(req: NextRequest) {
       // Clamp client timestamps to [now - 10min, now] against clock skew.
       const ts =
         ev.ts && ev.ts <= now && ev.ts > now - 10 * 60_000 ? ev.ts : now;
+      idArr.push(ev.id ?? null);
       tsArr.push(new Date(ts).toISOString());
       eventArr.push(ev.e);
       const props = { ...ev.props };
-      if (typeof props.q === "string") props.q = props.q.slice(0, MAX_QUERY_LEN);
+      if (typeof props.q === "string") {
+        props.q = props.q.slice(0, MAX_QUERY_LEN);
+        props.qLen = props.q.length;
+        if (!keepSearchTerms) delete props.q;
+      }
       propsArr.push(JSON.stringify(props));
     }
 
     await ensureSchema();
     const sql = getSql();
     await sql`
-      INSERT INTO events (ts, anon_id, session_id, event, page, referrer, country, device, browser, props)
-      SELECT ts, ${batch.aid}, ${batch.sid}, event, ${batch.page ?? null},
+      INSERT INTO events (event_id, ts, anon_id, session_id, event, page, referrer, country, device, browser, props)
+      SELECT event_id, ts, ${batch.aid}, ${batch.sid}, event, ${batch.page ?? null},
              ${batch.ref ?? null}, ${country}, ${device}, ${browser}, props
       FROM unnest(
+        ${idArr}::text[],
         ${tsArr}::timestamptz[],
         ${eventArr}::text[],
         ${propsArr}::jsonb[]
-      ) AS t(ts, event, props)
+      ) AS t(event_id, ts, event, props)
+      ON CONFLICT (event_id) WHERE event_id IS NOT NULL DO NOTHING
     `;
 
     return NO_CONTENT;
