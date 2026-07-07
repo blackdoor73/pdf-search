@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { FileText, Link, ChevronDown, ChevronUp, ExternalLink, Copy, Check } from "lucide-react";
-import clsx from "clsx";
+import { cn } from "@/lib/utils";
 import type { SearchResult } from "@/types";
 
 interface ResultCardProps {
@@ -28,7 +28,7 @@ export function ResultCard({ result, query: _query, index }: ResultCardProps) {
 
   return (
     <div
-      className={clsx(
+      className={cn(
         "card overflow-hidden animate-slide-in transition-all",
         !hasMatches && "opacity-60"
       )}
@@ -41,7 +41,7 @@ export function ResultCard({ result, query: _query, index }: ResultCardProps) {
       >
         {/* Icon */}
         <div
-          className={clsx(
+          className={cn(
             "w-8 h-8 flex items-center justify-center border shrink-0",
             hasMatches
               ? "border-[var(--accent)]/30 bg-yellow-500/5"
@@ -50,14 +50,14 @@ export function ResultCard({ result, query: _query, index }: ResultCardProps) {
         >
           {result.sourceType === "url" ? (
             <Link
-              className={clsx(
+              className={cn(
                 "w-3.5 h-3.5",
                 hasMatches ? "text-[var(--accent)]" : "text-[var(--text-3)]"
               )}
             />
           ) : (
             <FileText
-              className={clsx(
+              className={cn(
                 "w-3.5 h-3.5",
                 hasMatches ? "text-[var(--accent)]" : "text-[var(--text-3)]"
               )}

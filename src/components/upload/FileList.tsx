@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { FileText, Link, X, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
-import clsx from "clsx";
+import { cn } from "@/lib/utils";
 import type { PdfFile } from "@/types";
 import { formatBytes } from "@/hooks/useSearchEngine";
 
@@ -76,7 +76,7 @@ export function FileList({ files, onRemove, onClearAll, totalSizeBytes }: FileLi
           {files.map((file, i) => (
             <div
               key={file.id}
-              className={clsx(
+              className={cn(
                 "flex items-center gap-2 px-3 py-2 bg-[var(--surface2)] border border-[var(--border)]",
                 "hover:border-[var(--border2)] transition-colors group animate-slide-in"
               )}

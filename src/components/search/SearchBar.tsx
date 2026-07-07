@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Search, X, Settings2, Clock } from "lucide-react";
-import clsx from "clsx";
+import { cn } from "@/lib/utils";
 import type { SearchOptions, SearchHistoryEntry } from "@/types";
 
 interface SearchBarProps {
@@ -112,7 +112,7 @@ export function SearchBar({
       {/* Main search row — comboRef wraps input + dropdown for outside-click detection */}
       <div className="relative" ref={comboRef}>
         <div
-          className={clsx(
+          className={cn(
             "flex border transition-colors duration-150",
             isSearching
               ? "border-[var(--accent)]"
@@ -127,7 +127,7 @@ export function SearchBar({
               <div className="w-4 h-4 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
             ) : (
               <Search
-                className={clsx(
+                className={cn(
                   "w-4 h-4 transition-colors",
                   canSearch ? "text-[var(--text-3)]" : "text-[var(--border2)]"
                 )}
@@ -159,7 +159,7 @@ export function SearchBar({
                 : "Load PDFs above to start searching"
             }
             disabled={!canSearch && !isSearching}
-            className={clsx(
+            className={cn(
               "flex-1 bg-transparent py-4 pr-3 font-mono text-base text-[var(--text)] outline-none",
               "placeholder:text-[var(--text-3)]",
               (!canSearch && !isSearching) && "cursor-not-allowed"
@@ -197,7 +197,7 @@ export function SearchBar({
               closeHistory();
               setShowOptions((s) => !s);
             }}
-            className={clsx(
+            className={cn(
               "px-3 border-l border-[var(--border)] transition-colors",
               showOptions
                 ? "text-[var(--accent)]"
@@ -213,7 +213,7 @@ export function SearchBar({
             type="button"
             onClick={isSearching ? onCancel : () => handleSubmit()}
             disabled={!isSearching && (!canSearch || !query.trim())}
-            className={clsx(
+            className={cn(
               "shrink-0 px-6 font-mono text-sm font-semibold tracking-wide transition-colors border-l border-[var(--border)]",
               isSearching
                 ? "text-[var(--red)] hover:bg-red-500/10"
@@ -250,7 +250,7 @@ export function SearchBar({
                 aria-selected={i === activeIndex}
                 onClick={() => handleHistorySelect(entry.query)}
                 onMouseEnter={() => setActiveIndex(i)}
-                className={clsx(
+                className={cn(
                   "w-full flex items-center justify-between px-4 py-2.5 transition-colors group",
                   i === activeIndex ? "bg-[var(--surface)]" : "hover:bg-[var(--surface)]"
                 )}

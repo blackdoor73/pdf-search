@@ -12,7 +12,7 @@ import {
   Radio,
   TrendingUp,
 } from "lucide-react";
-import clsx from "clsx";
+import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/admin", label: "Overview", icon: Gauge },
@@ -59,7 +59,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={href}
                 href={href}
-                className={clsx(
+                className={cn(
                   "flex items-center gap-2.5 px-3 py-2 font-mono text-xs whitespace-nowrap transition-colors",
                   active
                     ? "bg-[var(--accent)] text-black font-semibold"
