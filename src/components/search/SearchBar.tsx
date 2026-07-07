@@ -150,7 +150,10 @@ export function SearchBar({
               }
             }}
             onKeyDown={handleKeyDown}
-            onFocus={() => {
+            // History opens on explicit intent (click/tap or ArrowDown), not
+            // on bare focus — programmatic focus (post-upload handoff, ⌘K)
+            // must not cover the page with stale recent searches.
+            onClick={() => {
               if (recentSearches.length > 0 && !query) setShowHistory(true);
             }}
             placeholder={

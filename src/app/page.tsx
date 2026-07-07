@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { ShieldCheck, Download, Keyboard, Zap, Lock, FileText, Search, Globe, CheckCircle } from "lucide-react";
@@ -178,6 +178,22 @@ export default function HomePage() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
+
+  // ── Upload → search handoff ──────────────────────────────────────────────
+  // The moment the first PDFs land, move focus to the search input so the
+  // next step answers itself. Re-arms after a "clear all".
+  const handoffDone = useRef(false);
+  useEffect(() => {
+    if (files.length === 0) {
+      handoffDone.current = false;
+      return;
+    }
+    if (handoffDone.current) return;
+    handoffDone.current = true;
+    document
+      .querySelector<HTMLInputElement>('input[aria-label="Search query"]')
+      ?.focus();
+  }, [files.length]);
 
   // ── First-visit onboarding tip (shown once per browser) ─────────────────
   useEffect(() => {
