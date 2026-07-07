@@ -26,37 +26,3 @@ export function truncate(str: string, max: number): string {
   if (str.length <= max) return str;
   return str.slice(0, max - 1) + "…";
 }
-
-/**
- * Derive a display filename from a URL path
- */
-export function filenameFromUrl(url: string): string {
-  try {
-    const path = new URL(url).pathname;
-    const name = path.split("/").pop() ?? "document.pdf";
-    return decodeURIComponent(name).replace(/[^a-zA-Z0-9._\- ]/g, "_");
-  } catch {
-    return "document.pdf";
-  }
-}
-
-/**
- * Pluralize a word based on count
- */
-export function plural(count: number, word: string, plural?: string): string {
-  return count === 1 ? word : (plural ?? word + "s");
-}
-
-/**
- * Sleep for ms milliseconds (for testing/throttle)
- */
-export function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * Clamp a number between min and max
- */
-export function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
-}

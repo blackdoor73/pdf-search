@@ -4,7 +4,6 @@
  * Handles:
  * - PDF text extraction via pdf.js
  * - Concurrent search across multiple PDFs
- * - Content-based deduplication (SHA-256)
  * - Memory management (ArrayBuffer cleanup)
  *
  * All processing is in-memory. Nothing is written to disk.
@@ -17,11 +16,7 @@ import type {
   SearchOptions,
   SearchProgress,
 } from "@/types";
-import {
-  escapeRegex,
-  createHighlightedHtml,
-  computeContentHash,
-} from "@/lib/security";
+import { escapeRegex, createHighlightedHtml } from "@/lib/security";
 
 // ─── pdf.js initialization ────────────────────────────────────────────────────
 
@@ -266,16 +261,3 @@ export async function searchAllPdfs(
   return results;
 }
 
-// ─── Deduplication ────────────────────────────────────────────────────────────
-
-/**
- * Checks if a file's content already exists in the loaded set.
- * Uses SHA-256 content hash for reliable deduplication.
- */
-export async function isDuplicate(
-  buffer: ArrayBuffer,
-  existingHashes: Set<string>
-): Promise<{ duplicate: boolean; hash: string }> {
-  const hash = await computeContentHash(buffer);
-  return { duplicate: existingHashes.has(hash), hash };
-}

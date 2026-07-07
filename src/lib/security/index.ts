@@ -6,7 +6,6 @@
  * - Input sanitization (XSS prevention)
  * - File validation (MIME, size, magic bytes)
  * - Rate limiting (in-memory for MVP; swap with Redis in production)
- * - CSRF token generation
  *
  * @security This file is security-critical. Changes require security review.
  */
@@ -18,9 +17,6 @@ import { z } from "zod";
 /** Max file size: 50MB per file. Rationale: balances usability vs. DoS risk.
  *  Large voter PDFs are typically <5MB; 50MB gives generous headroom. */
 export const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
-
-/** Max total in-memory across all loaded PDFs in one session */
-export const MAX_TOTAL_SIZE_BYTES = 500 * 1024 * 1024; // 500MB
 
 /** Max number of PDFs loaded simultaneously */
 export const MAX_PDF_COUNT = 200;
@@ -359,29 +355,3 @@ export function checkRateLimit(
   return { allowed: true, remaining: limit - entry.count, resetAt: entry.resetAt };
 }
 
-// ─── CSRF ─────────────────────────────────────────────────────────────────────
-// For this MVP (no state mutations, no auth), CSRF risk is low.
-// API routes are JSON-only (not form-POST) and same-origin.
-// Add CSRF tokens here when you add auth/mutations.
-
-export function generateCsrfToken(): string {
-  const array = new Uint8Array(32);
-  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
-    crypto.getRandomValues(array);
-  }
-  return Array.from(array)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-// ─── Content Hash (deduplication) ─────────────────────────────────────────────
-
-/**
- * Computes SHA-256 hash of ArrayBuffer content.
- * Used for deduplication — prevents same file being loaded twice.
- */
-export async function computeContentHash(buffer: ArrayBuffer): Promise<string> {
-  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
