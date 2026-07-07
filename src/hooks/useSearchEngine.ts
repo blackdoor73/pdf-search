@@ -11,7 +11,6 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { v4 as uuidv4 } from "uuid";
 import type {
   PdfFile,
   SearchState,
@@ -25,6 +24,8 @@ import {
   getOrCreateSessionId,
 } from "@/lib/storage/userHistory";
 import { track } from "@/lib/analytics/client";
+import { formatBytes } from "@/lib/utils";
+export { formatBytes };
 
 // ─── Initial state ─────────────────────────────────────────────────────────────
 
@@ -98,7 +99,7 @@ export function useSearchEngine() {
         }
 
         toAdd.push({
-          id: uuidv4(),
+          id: crypto.randomUUID(),
           name: validation.sanitizedName ?? sanitizeFilename(file.name),
           type: "file",
           source: file,
@@ -173,7 +174,7 @@ export function useSearchEngine() {
           sanitizeFilename(urlPath.split("/").pop() || "") || "document.pdf";
 
         toAdd.push({
-          id: uuidv4(),
+          id: crypto.randomUUID(),
           name: filename,
           type: "url",
           source: trimmed,
@@ -351,11 +352,3 @@ export function useSearchEngine() {
   };
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-export function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1048576).toFixed(1)} MB`;
-}

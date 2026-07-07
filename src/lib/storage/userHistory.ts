@@ -13,7 +13,6 @@
  * 3. No other code changes needed
  */
 
-import { v4 as uuidv4 } from "uuid";
 import type {
   UserHistory,
   HistoryEntry,
@@ -67,7 +66,7 @@ function deleteCookie(name: string): void {
 export function getOrCreateSessionId(): string {
   let sessionId = getCookie(SESSION_COOKIE);
   if (!sessionId) {
-    sessionId = uuidv4();
+    sessionId = crypto.randomUUID();
     setCookie(SESSION_COOKIE, sessionId, COOKIE_MAX_AGE);
   }
   return sessionId;
