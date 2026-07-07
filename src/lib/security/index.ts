@@ -111,7 +111,19 @@ export function validateProxyUrl(rawUrl: string): UrlValidationResult {
     return { valid: false, error: "This URL cannot be accessed" };
   }
 
-  // IP pattern blocklist
+  // Reject IP-literal hostnames outright. Legitimate public PDFs use
+  // domain names; IP literals are almost exclusively SSRF probes.
+  // Covers dotted IPv4 (including WHATWG-canonicalized decimal/hex/octal
+  // forms like https://2130706433 → hostname "127.0.0.1"), bracketed IPv6
+  // literals (parsed.hostname is bracketless, so we detect via colons),
+  // and IPv4-mapped IPv6 (::ffff:169.254.169.254) which slipped past the
+  // IPv4 regex.
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(hostname) || hostname.includes(":")) {
+    return { valid: false, error: "This URL cannot be accessed" };
+  }
+
+  // IP pattern blocklist — defense in depth in case the literal check
+  // above is ever relaxed.
   for (const pattern of BLOCKED_IP_PATTERNS) {
     if (pattern.test(hostname)) {
       return { valid: false, error: "This URL cannot be accessed" };

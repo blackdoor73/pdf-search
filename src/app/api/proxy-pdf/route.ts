@@ -22,6 +22,7 @@ import {
   PROXY_FETCH_TIMEOUT_MS,
   MAX_FILE_SIZE_BYTES,
 } from "@/lib/security";
+import { fetchWithValidatedRedirects } from "@/lib/security/proxyFetch";
 
 // ─── Route Config ─────────────────────────────────────────────────────────────
 
@@ -118,26 +119,45 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const safeUrl = urlValidation.sanitizedUrl!;
 
-  // ── 4. Fetch with timeout + size guard ────────────────────────────────────
-  let response: Response;
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      PROXY_FETCH_TIMEOUT_MS
-    );
+  // ── 4. Fetch with validated redirects + timeout ──────────────────────────
+  // Redirects are followed manually so validateProxyUrl runs on every hop —
+  // fetch(..., { redirect: "follow" }) only validates the initial URL,
+  // leaving the chain wide open to SSRF. One AbortController covers the
+  // whole chain.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    PROXY_FETCH_TIMEOUT_MS
+  );
 
-    response = await fetch(safeUrl, {
-      signal: controller.signal,
-      headers: {
+  let response: Response;
+  let finalUrl: string;
+  try {
+    const result = await fetchWithValidatedRedirects(
+      safeUrl,
+      {
         // Minimal headers — don't forward user cookies/auth
         Accept: "application/pdf,application/octet-stream,*/*",
         "User-Agent": "PDFSearch-Bot/1.0",
       },
-      redirect: "follow", // Allow redirects but validate final URL
-    });
+      { signal: controller.signal }
+    );
 
-    clearTimeout(timeoutId);
+    if (!result.ok) {
+      const status =
+        result.code === "SSRF_BLOCKED"
+          ? 400
+          : result.code === "REDIRECT_LIMIT" || result.code === "REDIRECT_INVALID"
+          ? 400
+          : 502;
+      return NextResponse.json(
+        { error: result.error, code: result.code },
+        { status }
+      );
+    }
+
+    response = result.response;
+    finalUrl = result.finalUrl;
   } catch (err: unknown) {
     if (err instanceof Error && err.name === "AbortError") {
       return NextResponse.json(
@@ -152,6 +172,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       },
       { status: 502 }
     );
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   if (!response.ok) {
@@ -215,8 +237,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // ── 8. Derive filename ────────────────────────────────────────────────────
-  const urlPath = new URL(safeUrl).pathname;
+  // ── 8. Derive filename from the FINAL validated URL, not the initial
+  //       one — after a redirect, the initial URL may be a shortlink like
+  //       "/r/abc123" that doesn't reflect the actual document name.
+  const urlPath = new URL(finalUrl).pathname;
   const filename =
     urlPath.split("/").pop()?.replace(/[^a-zA-Z0-9._-]/g, "_") ||
     "document.pdf";

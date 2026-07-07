@@ -120,7 +120,9 @@ export interface ProxyPdfError {
     | "INVALID_CONTENT_TYPE"
     | "FILE_TOO_LARGE"
     | "TIMEOUT"
-    | "RATE_LIMITED";
+    | "RATE_LIMITED"
+    | "REDIRECT_LIMIT"
+    | "REDIRECT_INVALID";
 }
 
 // ─── Progress Types ───────────────────────────────────────────────────────────
