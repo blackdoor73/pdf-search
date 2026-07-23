@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { pagesByGroup } from "@/lib/seo/pages";
+import { NewsletterSignup } from "@/components/NewsletterSignup";
 
 /**
  * Full sitemap footer for landing/blog/content pages, fed by the canonical
@@ -38,7 +39,10 @@ export function SiteFooter() {
             </nav>
           ))}
         </div>
-        <div className="flex items-center justify-between flex-wrap gap-3 mt-10 pt-6 border-t border-[var(--border)]">
+        <div className="mt-10 pt-6 border-t border-[var(--border)]">
+          <NewsletterSignup />
+        </div>
+        <div className="flex items-center justify-between flex-wrap gap-3 mt-8">
           <Link
             href="/"
             className="font-mono text-xs text-[var(--text-3)] hover:text-[var(--text-2)] transition-colors"

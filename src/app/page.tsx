@@ -3,7 +3,7 @@
 import { useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { ShieldCheck, Download, Keyboard, Zap, Lock, FileText, Search, Globe, CheckCircle } from "lucide-react";
+import { ShieldCheck, Download, Zap, Lock, FileText, Search, Globe, CheckCircle } from "lucide-react";
 import { UploadZone } from "@/components/upload/UploadZone";
 import { UrlInput } from "@/components/upload/UrlInput";
 import { SearchBar } from "@/components/search/SearchBar";
@@ -11,6 +11,8 @@ import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { useSearchEngine } from "@/hooks/useSearchEngine";
 import { useUserHistory } from "@/hooks/useUserHistory";
 import { useToast } from "@/components/ui/Toast";
+import { WhatsNew } from "@/components/WhatsNew";
+import { ShortcutsOverlay } from "@/components/ShortcutsOverlay";
 import { track } from "@/lib/analytics/client";
 import { homepageFaqSchema, homepageHowToSchema } from "./seo-schemas";
 import type { SearchResult } from "@/types";
@@ -232,9 +234,8 @@ export default function HomePage() {
             </span>
           </a>
 
-          <nav aria-label="Site navigation" className="flex items-center gap-4">
-            <div className="hidden md:flex items-center gap-1.5">
-              <Keyboard className="w-3 h-3 text-[var(--text-3)]" />
+          <nav aria-label="Site navigation" className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-1.5 mr-1">
               <kbd className="font-mono text-[10px] text-[var(--text-3)] px-1.5 py-0.5 bg-[var(--surface2)] border border-[var(--border)]">
                 ⌘K
               </kbd>
@@ -242,7 +243,9 @@ export default function HomePage() {
                 to search
               </span>
             </div>
-            <div className="flex items-center gap-1.5">
+            <WhatsNew />
+            <ShortcutsOverlay />
+            <div className="flex items-center gap-1.5 ml-1">
               <ShieldCheck className="w-3.5 h-3.5 text-[var(--green)]" />
               <span className="hidden sm:inline font-mono text-xs text-[var(--text-3)]">
                 Files never stored

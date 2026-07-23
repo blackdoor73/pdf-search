@@ -206,6 +206,44 @@ export const publicPages: PublicPage[] = [
     changeFrequency: "monthly",
     priority: 0.65,
   },
+  {
+    path: "/blog/how-lawyers-search-500-page-pdfs",
+    title: "How Lawyers Search 500-Page PDFs",
+    shortDescription: "A confidential, in-browser workflow for legal documents.",
+    group: "guide",
+    lastModified: "2026-07-23",
+    changeFrequency: "monthly",
+    priority: 0.65,
+  },
+  {
+    path: "/blog/pdf-search-workflow-for-students",
+    title: "A PDF Search Workflow for Students",
+    shortDescription: "Turn a semester of PDFs into a searchable study aid.",
+    group: "guide",
+    lastModified: "2026-07-23",
+    changeFrequency: "monthly",
+    priority: 0.65,
+  },
+  {
+    path: "/blog/how-to-search-scanned-pdfs",
+    title: "How to Search Scanned PDFs",
+    shortDescription: "The text-layer test and a practical OCR pipeline.",
+    group: "guide",
+    lastModified: "2026-07-23",
+    changeFrequency: "monthly",
+    priority: 0.65,
+  },
+
+  // ── Product ───────────────────────────────────────────────────────────
+  {
+    path: "/changelog",
+    title: "Changelog",
+    shortDescription: "What's new in PDFSearch — recent updates and fixes.",
+    group: "product",
+    lastModified: "2026-07-23",
+    changeFrequency: "weekly",
+    priority: 0.5,
+  },
 ];
 
 export function pagesByGroup(group: PageGroup): PublicPage[] {
