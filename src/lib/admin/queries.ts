@@ -10,17 +10,21 @@
 import { getSql } from "@/lib/db";
 import {
   buildDocumentsQuery,
+  buildFeedbackQuery,
   toCsv,
   type DocumentFilters,
+  type FeedbackFilters,
 } from "./queryHelpers";
 
 export {
   buildDocumentsQuery,
+  buildFeedbackQuery,
   clampDays,
   clampPage,
   clampPageSize,
   toCsv,
   type DocumentFilters,
+  type FeedbackFilters,
 } from "./queryHelpers";
 
 type Row = Record<string, unknown>;
@@ -968,6 +972,64 @@ export async function deleteDocuments(opts: {
   return { deleted: 0 };
 }
 
+// ─── Feedback ─────────────────────────────────────────────────────────────────
+
+export async function getFeedback(f: FeedbackFilters) {
+  const sql = getSql();
+  const { text, countText, params } = buildFeedbackQuery(f);
+
+  const [countRow] = (await sql.query(countText, params)) as Row[];
+  const rows = (await sql.query(text, [
+    ...params,
+    f.pageSize,
+    (f.page - 1) * f.pageSize,
+  ])) as Row[];
+
+  return {
+    rows: rows.map((r) => ({
+      id: num(r.id),
+      at: String(r.at),
+      category: String(r.category),
+      message: String(r.message),
+      email: r.email ? String(r.email) : "",
+      page: String(r.page ?? ""),
+      country: String(r.country ?? ""),
+      browser: String(r.browser ?? ""),
+      os: String(r.os ?? ""),
+      device: String(r.device ?? ""),
+      status: String(r.status),
+      adminNote: String(r.admin_note ?? ""),
+    })),
+    total: num(countRow?.total),
+    newCount: num(countRow?.new_count),
+    page: f.page,
+    pageSize: f.pageSize,
+  };
+}
+
+export async function updateFeedback(
+  id: number,
+  patch: { status?: "new" | "resolved"; adminNote?: string }
+): Promise<{ updated: number }> {
+  const sql = getSql();
+  if (patch.status) {
+    await sql`UPDATE feedback SET status = ${patch.status} WHERE id = ${id}`;
+  }
+  if (patch.adminNote != null) {
+    await sql`UPDATE feedback SET admin_note = ${patch.adminNote.slice(0, 1000)} WHERE id = ${id}`;
+  }
+  return { updated: 1 };
+}
+
+export async function deleteFeedback(ids: number[]): Promise<{ deleted: number }> {
+  if (!ids.length) return { deleted: 0 };
+  const sql = getSql();
+  const rows = (await sql`
+    DELETE FROM feedback WHERE id = ANY(${ids}) RETURNING id
+  `) as Row[];
+  return { deleted: rows.length };
+}
+
 // ─── Report export (CSV / JSON) ───────────────────────────────────────────────
 // No native .xlsx: CSV opens directly in Excel, and a spreadsheet library
 // would add ~1MB to the serverless bundle for no real gain (see
@@ -1071,6 +1133,21 @@ async function buildReport(
         d.at, d.filename, d.sizeBytes, d.pageCount, d.sha256,
         d.title, d.author, d.subject, d.keywords, d.producer,
         d.source, d.status, d.processingMs, d.country, d.city, d.duplicates,
+      ]),
+    };
+  }
+
+  if (report === "feedback") {
+    const { rows } = await getFeedback({ page: 1, pageSize: EXPORT_PAGE_SIZE });
+    return {
+      name: "feedback",
+      headers: [
+        "received_at", "category", "status", "message", "email",
+        "page", "country", "device", "os", "browser",
+      ],
+      rows: rows.map((r) => [
+        r.at, r.category, r.status, r.message, r.email,
+        r.page, r.country, r.device, r.os, r.browser,
       ]),
     };
   }

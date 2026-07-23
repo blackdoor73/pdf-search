@@ -115,3 +115,68 @@ export function buildDocumentsQuery(f: DocumentFilters): {
     params,
   };
 }
+
+// ─── Feedback listing SQL ─────────────────────────────────────────────────────
+
+export interface FeedbackFilters {
+  q?: string;
+  category?: string;
+  status?: "new" | "resolved";
+  from?: string; // YYYY-MM-DD
+  to?: string; // YYYY-MM-DD (inclusive)
+  page: number;
+  pageSize: number;
+}
+
+const FEEDBACK_CATEGORY_SET = new Set([
+  "bug",
+  "feature",
+  "general",
+  "ui-ux",
+  "performance",
+  "other",
+]);
+
+/**
+ * Pure WHERE/ORDER/LIMIT assembly for the feedback listing — testable
+ * without a database. All values parameterized; category/status validated
+ * against whitelists.
+ */
+export function buildFeedbackQuery(f: FeedbackFilters): {
+  text: string;
+  countText: string;
+  params: unknown[];
+} {
+  const clauses: string[] = ["TRUE"];
+  const params: unknown[] = [];
+  const add = (clause: (n: number) => string, value: unknown) => {
+    params.push(value);
+    clauses.push(clause(params.length));
+  };
+
+  if (f.q) add((n) => `message ILIKE '%' || $${n} || '%'`, f.q.slice(0, 200));
+  if (f.category && FEEDBACK_CATEGORY_SET.has(f.category))
+    add((n) => `category = $${n}`, f.category);
+  if (f.status === "new" || f.status === "resolved")
+    add((n) => `status = $${n}`, f.status);
+  if (f.from && DATE_RE.test(f.from)) add((n) => `ts >= $${n}::date`, f.from);
+  if (f.to && DATE_RE.test(f.to))
+    add((n) => `ts < $${n}::date + interval '1 day'`, f.to);
+
+  const where = clauses.join(" AND ");
+  const limit = `$${params.length + 1}`;
+  const offset = `$${params.length + 2}`;
+
+  return {
+    text: `SELECT id, to_char(ts, 'YYYY-MM-DD HH24:MI') AS at, category, message,
+             email, page, country, browser, os, device, status, admin_note
+           FROM feedback
+           WHERE ${where}
+           ORDER BY ts DESC, id DESC
+           LIMIT ${limit} OFFSET ${offset}`,
+    countText: `SELECT count(*) AS total,
+                  count(*) FILTER (WHERE status = 'new') AS new_count
+                FROM feedback WHERE ${where}`,
+    params,
+  };
+}

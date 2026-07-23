@@ -1,19 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, ShieldCheck } from "lucide-react";
+import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
+import { SiteFooter } from "@/components/seo/SiteFooter";
+import { absUrl, breadcrumbSchema } from "@/lib/seo/site";
 
 export const metadata: Metadata = {
   title: "PDF Search Blog — Guides, Tips & Tools for Searching PDFs",
   description:
     "Guides, tutorials, and comparisons for searching inside PDF files. Learn how to search multiple PDFs, find text in documents, and use PDF search tools effectively.",
   alternates: {
-    canonical: "https://www.pdfsearch.info/blog",
+    canonical: absUrl("/blog"),
   },
   openGraph: {
     title: "PDF Search Blog — Guides, Tips & Tools for Searching PDFs",
     description:
       "Guides and tutorials on how to search inside PDFs efficiently. Tips, comparisons, and use cases.",
-    url: "https://www.pdfsearch.info/blog",
+    url: absUrl("/blog"),
   },
 };
 
@@ -45,11 +48,62 @@ const posts = [
     readTime: "7 min read",
     tags: ["comparison", "tools", "roundup"],
   },
+  {
+    slug: "how-lawyers-search-500-page-pdfs",
+    title: "How Lawyers Search 500-Page PDFs Without Uploading a Thing",
+    description:
+      "Discovery documents, contracts, and deposition transcripts — searched fast and kept confidential, because nothing leaves the browser.",
+    date: "2026-07-23",
+    readTime: "6 min read",
+    tags: ["use case", "legal", "privacy"],
+  },
+  {
+    slug: "pdf-search-workflow-for-students",
+    title: "A PDF Search Workflow for Students (Textbooks, Notes, Exam Prep)",
+    description:
+      "Turn a semester of PDFs into a searchable study aid — find definitions, formulas, and citations across every file at once.",
+    date: "2026-07-23",
+    readTime: "5 min read",
+    tags: ["use case", "students", "productivity"],
+  },
+  {
+    slug: "how-to-search-scanned-pdfs",
+    title: "How to Search Scanned PDFs (and When You Simply Can't)",
+    description:
+      "The text-layer test, what OCR actually does, and a practical pipeline for making image-only scans searchable.",
+    date: "2026-07-23",
+    readTime: "6 min read",
+    tags: ["guide", "OCR", "scanned"],
+  },
 ];
+
+const blogListSchema = {
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  itemListElement: posts.map((p, i) => ({
+    "@type": "ListItem",
+    position: i + 1,
+    url: absUrl(`/blog/${p.slug}`),
+    name: p.title,
+  })),
+};
+
+const blogBreadcrumb = breadcrumbSchema([
+  { name: "Home", path: "/" },
+  { name: "Blog", path: "/blog" },
+]);
 
 export default function BlogPage() {
   return (
     <div className="min-h-screen bg-[var(--bg)] grid-bg">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(blogListSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(blogBreadcrumb) }}
+      />
       <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur-sm">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
@@ -69,6 +123,12 @@ export default function BlogPage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-12">
+        <Breadcrumbs
+          items={[
+            { name: "Home", path: "/" },
+            { name: "Blog", path: "" },
+          ]}
+        />
         <div className="mb-10">
           <p className="font-mono text-[11px] text-[var(--accent)] uppercase tracking-widest mb-2">
             Resource Hub
@@ -136,16 +196,7 @@ export default function BlogPage() {
         </div>
       </main>
 
-      <footer className="border-t border-[var(--border)] mt-16">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-between flex-wrap gap-3">
-          <Link href="/" className="font-mono text-xs text-[var(--text-3)]">PDFSearch · Free PDF Search Tool</Link>
-          <div className="flex items-center gap-4">
-            <Link href="/" className="font-mono text-[10px] text-[var(--text-3)]">Home</Link>
-            <Link href="/how-to-search-pdf" className="font-mono text-[10px] text-[var(--text-3)]">How to Search PDF</Link>
-            <Link href="/search-multiple-pdfs" className="font-mono text-[10px] text-[var(--text-3)]">Search Multiple PDFs</Link>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

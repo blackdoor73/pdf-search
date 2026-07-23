@@ -16,8 +16,9 @@ const nextConfig = {
         ],
       },
       {
-        // Cache SEO pages for 1 hour at CDN edge
-        source: "/(how-to-search-pdf|search-multiple-pdfs|pdf-search-online|search-text-in-pdf|find-words-in-pdf|free-pdf-search-engine|search-scanned-pdf|bulk-pdf-search|blog)(.*)",
+        // Cache SEO/content pages for 1 hour at CDN edge
+        source:
+          "/(how-to-search-pdf|search-multiple-pdfs|pdf-search-online|search-text-in-pdf|find-words-in-pdf|free-pdf-search-engine|search-scanned-pdf|bulk-pdf-search|search-government-documents|search-technical-manuals|pdf-search-for-students|pdf-search-for-researchers|pdf-search-for-lawyers|pdf-search-for-finance|pdf-search-for-recruiters|pdf-search-for-engineers|blog|changelog)(.*)",
         headers: [
           { key: "Cache-Control", value: "public, s-maxage=3600, stale-while-revalidate=86400" },
         ],
@@ -35,14 +36,17 @@ const nextConfig = {
           },
           {
             key: "Content-Security-Policy",
+            // pdf.js worker is self-hosted (scripts/copy-pdf-worker.mjs), so
+            // cdnjs is gone. GA4 + Microsoft Clarity are allowed — both load
+            // only when their NEXT_PUBLIC_* env vars are set.
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: https://cdnjs.cloudflare.com",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: https://www.googletagmanager.com https://www.clarity.ms",
               "style-src 'self' 'unsafe-inline'",
               "font-src 'self' data:",
-              "img-src 'self' data: blob:",
-              "worker-src 'self' blob: https://cdnjs.cloudflare.com",
-              "connect-src 'self' https://cdnjs.cloudflare.com",
+              "img-src 'self' data: blob: https://*.google-analytics.com https://www.googletagmanager.com https://*.clarity.ms",
+              "worker-src 'self' blob:",
+              "connect-src 'self' https://*.google-analytics.com https://www.googletagmanager.com https://*.clarity.ms",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

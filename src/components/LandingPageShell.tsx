@@ -1,5 +1,14 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { CheckCircle, ArrowRight, ShieldCheck, Zap, Lock } from "lucide-react";
+import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
+import { RelatedPages, type RelatedLink } from "@/components/seo/RelatedPages";
+import { SiteFooter } from "@/components/seo/SiteFooter";
+
+interface TrustSignal {
+  title: string;
+  desc: string;
+}
 
 interface LandingPageShellProps {
   headline: string;
@@ -10,7 +19,28 @@ interface LandingPageShellProps {
   faqItems: { question: string; answer: string }[];
   ctaText?: string;
   schemaMarkup?: object | object[];
+  /** Current page name for the visual breadcrumb trail. */
+  breadcrumbLabel?: string;
+  /** Per-page trust-signal copy — overrides the generic defaults so pages
+   *  don't all repeat identical text (thin-content risk). */
+  trustSignals?: TrustSignal[];
+  /** Unique per-page body section (use-case prose with contextual links). */
+  useCaseSection?: ReactNode;
+  relatedTools?: RelatedLink[];
+  relatedArticles?: RelatedLink[];
 }
+
+const DEFAULT_TRUST: TrustSignal[] = [
+  { title: "Instant results", desc: "Search across hundreds of pages in milliseconds" },
+  { title: "100% private", desc: "Files never leave your browser — ever" },
+  { title: "No signup needed", desc: "Free forever, no account required" },
+];
+
+const TRUST_ICONS = [
+  <Zap key="zap" className="w-5 h-5 text-[var(--accent)]" />,
+  <Lock key="lock" className="w-5 h-5 text-[var(--green)]" />,
+  <ShieldCheck key="shield" className="w-5 h-5 text-[var(--blue)]" />,
+];
 
 export function LandingPageShell({
   headline,
@@ -21,6 +51,11 @@ export function LandingPageShell({
   faqItems,
   ctaText = "Search PDFs Now — Free",
   schemaMarkup,
+  breadcrumbLabel,
+  trustSignals = DEFAULT_TRUST,
+  useCaseSection,
+  relatedTools,
+  relatedArticles,
 }: LandingPageShellProps) {
   return (
     <div className="min-h-screen bg-[var(--bg)] grid-bg">
@@ -71,6 +106,15 @@ export function LandingPageShell({
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-12 space-y-16">
 
+        {breadcrumbLabel && (
+          <Breadcrumbs
+            items={[
+              { name: "Home", path: "/" },
+              { name: breadcrumbLabel, path: "" },
+            ]}
+          />
+        )}
+
         {/* Hero */}
         <section aria-labelledby="lp-hero-heading">
           <div className="max-w-3xl">
@@ -111,25 +155,9 @@ export function LandingPageShell({
         {/* Trust signals */}
         <section aria-label="Trust signals">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {[
-              {
-                icon: <Zap className="w-5 h-5 text-[var(--accent)]" />,
-                title: "Instant results",
-                desc: "Search across hundreds of pages in milliseconds",
-              },
-              {
-                icon: <Lock className="w-5 h-5 text-[var(--green)]" />,
-                title: "100% private",
-                desc: "Files never leave your browser — ever",
-              },
-              {
-                icon: <ShieldCheck className="w-5 h-5 text-[var(--blue)]" />,
-                title: "No signup needed",
-                desc: "Free forever, no account required",
-              },
-            ].map((t) => (
+            {trustSignals.slice(0, 3).map((t, i) => (
               <div key={t.title} className="card p-5 flex items-start gap-3">
-                {t.icon}
+                {TRUST_ICONS[i]}
                 <div>
                   <h3 className="font-mono text-sm font-semibold text-[var(--text)] mb-1">{t.title}</h3>
                   <p className="font-sans text-xs text-[var(--text-2)]">{t.desc}</p>
@@ -138,6 +166,9 @@ export function LandingPageShell({
             ))}
           </div>
         </section>
+
+        {/* Per-page use case (unique content, contextual internal links) */}
+        {useCaseSection}
 
         {/* How-to steps */}
         <section aria-labelledby="lp-howto-heading">
@@ -188,6 +219,13 @@ export function LandingPageShell({
           </div>
         </section>
 
+        {relatedTools && relatedTools.length > 0 && (
+          <RelatedPages heading="Related tools" links={relatedTools} />
+        )}
+        {relatedArticles && relatedArticles.length > 0 && (
+          <RelatedPages heading="Guides & articles" links={relatedArticles} />
+        )}
+
         {/* Bottom CTA */}
         <section aria-labelledby="lp-cta-heading" className="card p-8 text-center">
           <h2 id="lp-cta-heading" className="font-mono text-2xl font-semibold text-[var(--text)] mb-3">
@@ -208,20 +246,7 @@ export function LandingPageShell({
 
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-[var(--border)] mt-16">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-between flex-wrap gap-3">
-          <Link href="/" className="font-mono text-xs text-[var(--text-3)] hover:text-[var(--text-2)] transition-colors">
-            PDFSearch · Free PDF Search Tool
-          </Link>
-          <div className="flex items-center gap-4 flex-wrap">
-            <Link href="/" className="font-mono text-[10px] text-[var(--text-3)] hover:text-[var(--text-2)]">Home</Link>
-            <Link href="/how-to-search-pdf" className="font-mono text-[10px] text-[var(--text-3)] hover:text-[var(--text-2)]">How to Search PDF</Link>
-            <Link href="/search-multiple-pdfs" className="font-mono text-[10px] text-[var(--text-3)] hover:text-[var(--text-2)]">Search Multiple PDFs</Link>
-            <Link href="/blog" className="font-mono text-[10px] text-[var(--text-3)] hover:text-[var(--text-2)]">Blog</Link>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

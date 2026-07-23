@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { LandingPageShell } from "@/components/LandingPageShell";
 
 export const metadata: Metadata = {
@@ -112,6 +113,31 @@ export default function SearchTextInPdfPage() {
           answer:
             "PDFSearch requires PDFs with embedded text. Scanned PDFs that are image-only won't return results unless they were saved with a text layer (e.g., using OCR software).",
         },
+      ]}
+      breadcrumbLabel="Search Text in PDF"
+      trustSignals={[
+        { title: "Exact-match precision", desc: "Case-sensitive and whole-word modes when it matters" },
+        { title: "Page-level answers", desc: "Every hit tells you exactly where to look" },
+        { title: "Long documents welcome", desc: "500-page filings search as fast as 5-page memos" },
+      ]}
+      useCaseSection={
+        <section aria-labelledby="lp-usecase-heading">
+          <h2 id="lp-usecase-heading" className="font-mono text-2xl font-semibold text-[var(--text)] mb-4">
+            Precision searching: defined terms, identifiers, exact phrases
+          </h2>
+          <div className="font-sans text-sm text-[var(--text-2)] leading-relaxed space-y-4 max-w-3xl">
+            <p>Generic search is fine for common words, but real document work is usually more exact: a defined term like “Change of Control” that must match capitalization, a part number where PN-1042 and PN-10425 are different things, or a person’s name that’s also an ordinary word. That’s what whole-word and case-sensitive modes are for.</p>
+            <p>Engineers hunting identifiers through datasheets (<Link href="/pdf-search-for-engineers" className="text-[var(--accent)] hover:underline">that workflow here</Link>) and finance teams tracing line items through <Link href="/pdf-search-for-finance" className="text-[var(--accent)] hover:underline">10-Ks and filings</Link> rely on exact matching daily. For a broader look at every occurrence of a term rather than a precise lookup, <Link href="/find-words-in-pdf" className="text-[var(--accent)] hover:underline">find words in PDF</Link> covers the counting-and-context side.</p>
+          </div>
+        </section>
+      }
+      relatedTools={[
+        { href: "/find-words-in-pdf", title: "Find Words in PDF", description: "Every occurrence, with highlighted context." },
+        { href: "/pdf-search-for-engineers", title: "PDF Search for Engineers", description: "Part numbers, specs, and datasheets." },
+        { href: "/bulk-pdf-search", title: "Bulk PDF Search", description: "The same precision across a whole folder." },
+      ]}
+      relatedArticles={[
+        { href: "/blog/ctrlf-vs-advanced-pdf-search", title: "Ctrl+F vs Advanced PDF Search", description: "What precise matching adds." },
       ]}
       schemaMarkup={[faqSchema, breadcrumbSchema]}
     />

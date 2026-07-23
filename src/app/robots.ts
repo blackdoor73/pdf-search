@@ -1,4 +1,5 @@
 import { MetadataRoute } from "next";
+import { siteUrl } from "@/lib/seo/site";
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -9,7 +10,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/api/", "/admin"],
       },
     ],
-    sitemap: "https://www.pdfsearch.info/sitemap.xml",
-    host: "https://www.pdfsearch.info",
+    sitemap: `${siteUrl}/sitemap.xml`,
+    host: siteUrl,
   };
 }

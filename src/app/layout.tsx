@@ -3,6 +3,8 @@ import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
 import { Analytics } from "@/components/Analytics";
+import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
+import { siteUrl } from "@/lib/seo/site";
 
 const plexMono = IBM_Plex_Mono({
   subsets: ["latin"],
@@ -17,8 +19,6 @@ const plexSans = IBM_Plex_Sans({
   variable: "--font-sans",
   display: "swap",
 });
-
-const siteUrl = "https://www.pdfsearch.info";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -46,7 +46,6 @@ export const metadata: Metadata = {
     "find words in PDF online",
     "search across multiple PDFs",
     "free PDF search engine",
-    "AI PDF search",
     "document search tool",
     "search PDF online free",
     "PDF text search",
@@ -101,6 +100,11 @@ export const metadata: Metadata = {
   category: "technology",
   verification: {
     google: "tmJl7JqVnRiBV1uktbsNDiswdYYbIBcDMfO1F5AL55c",
+    // Bing Webmaster Tools — set NEXT_PUBLIC_BING_VERIFICATION to the
+    // msvalidate.01 content value; omitted entirely when unset.
+    ...(process.env.NEXT_PUBLIC_BING_VERIFICATION
+      ? { other: { "msvalidate.01": process.env.NEXT_PUBLIC_BING_VERIFICATION } }
+      : {}),
   },
 };
 
@@ -133,13 +137,9 @@ export default function RootLayout({
       "Case-sensitive and whole-word search options",
     ],
     screenshot: `${siteUrl}/opengraph-image`,
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: "4.9",
-      reviewCount: "1240",
-      bestRating: "5",
-      worstRating: "1",
-    },
+    // NOTE: no aggregateRating — Google's structured-data policy requires
+    // ratings to come from real, displayed user reviews. Add one only if a
+    // genuine review mechanism ever exists.
   };
 
   const organizationSchema = {
@@ -157,14 +157,9 @@ export default function RootLayout({
     name: "PDFSearch",
     url: siteUrl,
     description: "Free online PDF search tool — search text inside any PDF instantly",
-    potentialAction: {
-      "@type": "SearchAction",
-      target: {
-        "@type": "EntryPoint",
-        urlTemplate: `${siteUrl}/?q={search_term_string}`,
-      },
-      "query-input": "required name=search_term_string",
-    },
+    // No SearchAction: the app has no site-search results pages (the in-app
+    // search runs client-side over the user's own files, and /?q= is not
+    // handled), so advertising one would be a broken rich-result target.
   };
 
   return (
@@ -188,7 +183,10 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          {children}
+          <FeedbackWidget />
+        </ToastProvider>
         <Analytics />
       </body>
     </html>
