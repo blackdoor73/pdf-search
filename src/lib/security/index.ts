@@ -21,6 +21,11 @@ export const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
 /** Max number of PDFs loaded simultaneously */
 export const MAX_PDF_COUNT = 200;
 
+/** Max combined size of all PDFs loaded in one session. Guards browser memory —
+ *  every file is held in memory for searching. URL-sourced files are exempt
+ *  (size unknown until fetch; each is still capped by MAX_FILE_SIZE_BYTES). */
+export const MAX_SESSION_BYTES = 500 * 1024 * 1024; // 500MB
+
 /** Max search query length */
 export const MAX_QUERY_LENGTH = 500;
 

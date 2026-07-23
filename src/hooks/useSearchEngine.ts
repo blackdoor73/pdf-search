@@ -18,7 +18,12 @@ import type {
   SearchProgress,
 } from "@/types";
 import { searchAllPdfs } from "@/lib/pdf/engine";
-import { validatePdfFile, sanitizeFilename, MAX_PDF_COUNT } from "@/lib/security";
+import {
+  validatePdfFile,
+  sanitizeFilename,
+  MAX_PDF_COUNT,
+  MAX_SESSION_BYTES,
+} from "@/lib/security";
 import {
   getUserRepository,
   getOrCreateSessionId,
@@ -78,6 +83,14 @@ export function useSearchEngine() {
           continue;
         }
 
+        // Session size cap
+        if (totalSizeBytes + addedSize + file.size > MAX_SESSION_BYTES) {
+          skipped.push(
+            `${file.name} (session limit ${formatBytes(MAX_SESSION_BYTES)} reached)`
+          );
+          continue;
+        }
+
         // Validate
         const validation = await validatePdfFile(file);
         if (!validation.valid) {
@@ -132,7 +145,7 @@ export function useSearchEngine() {
 
       return { added: toAdd.length, skipped };
     },
-    [files]
+    [files, totalSizeBytes]
   );
 
   const addUrls = useCallback(
