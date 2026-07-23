@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { LandingPageShell } from "@/components/LandingPageShell";
 
 export const metadata: Metadata = {
@@ -104,6 +105,31 @@ export default function FreePdfSearchEnginePage() {
           answer:
             "Yes. Paste any public HTTPS PDF URL and PDFSearch will fetch and index the document for you to search — no manual download needed.",
         },
+      ]}
+      breadcrumbLabel="Free PDF Search Engine"
+      trustSignals={[
+        { title: "Actually free", desc: "No trial, no credit card, no feature paywall" },
+        { title: "No account wall", desc: "Search your first PDF within ten seconds of arriving" },
+        { title: "Your files stay yours", desc: "Nothing uploaded, nothing retained, nothing to delete" },
+      ]}
+      useCaseSection={
+        <section aria-labelledby="lp-usecase-heading">
+          <h2 id="lp-usecase-heading" className="font-mono text-2xl font-semibold text-[var(--text)] mb-4">
+            What a “free PDF search engine” should mean
+          </h2>
+          <div className="font-sans text-sm text-[var(--text-2)] leading-relaxed space-y-4 max-w-3xl">
+            <p>Plenty of tools advertise free PDF search and then meter it: three files a day, ten pages per file, results truncated until you subscribe. Free should mean the actual workflow is free — load real documents, run real searches, export real results.</p>
+            <p>PDFSearch can be genuinely free because there’s no server doing the work: your browser does the parsing, so there’s no compute bill to recoup. The trade-off is honest too — very large jobs are bounded by your machine, and scanned PDFs <Link href="/search-scanned-pdf" className="text-[var(--accent)] hover:underline">need a text layer</Link>. For most personal document libraries — statements, manuals, receipts, papers — it’s more than enough, and <Link href="/bulk-pdf-search" className="text-[var(--accent)] hover:underline">bulk search</Link> covers the heavy sessions.</p>
+          </div>
+        </section>
+      }
+      relatedTools={[
+        { href: "/pdf-search-online", title: "PDF Search Online", description: "Search in the browser with nothing installed." },
+        { href: "/bulk-pdf-search", title: "Bulk PDF Search", description: "Folder-scale searching with CSV export." },
+        { href: "/search-technical-manuals", title: "Search Technical Manuals", description: "Error codes and product docs." },
+      ]}
+      relatedArticles={[
+        { href: "/blog/best-pdf-search-tools", title: "Best PDF Search Tools", description: "Honest comparison, including paid ones." },
       ]}
       schemaMarkup={[faqSchema, breadcrumbSchema]}
     />

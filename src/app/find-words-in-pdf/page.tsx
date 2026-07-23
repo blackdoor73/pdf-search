@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { LandingPageShell } from "@/components/LandingPageShell";
 
 export const metadata: Metadata = {
@@ -71,7 +72,7 @@ export default function FindWordsInPdfPage() {
         },
         {
           title: "Enter the word to find",
-          desc: "Type the word or phrase in the search box. Enable whole-word matching to find standalone words only (e.g., find 'act' but not 'action').",
+          desc: "Type the word or phrase in the search box. Enable whole-word matching to find standalone words only (e.g., find ’act’ but not ’action’).",
         },
         {
           title: "See results with page numbers",
@@ -104,6 +105,31 @@ export default function FindWordsInPdfPage() {
           answer:
             "Yes. Load multiple PDFs and run your search — PDFSearch will find the word in all loaded documents and show you which file and page each match is on.",
         },
+      ]}
+      breadcrumbLabel="Find Words in PDF"
+      trustSignals={[
+        { title: "Every occurrence listed", desc: "Not one-at-a-time clicking — the full list at once" },
+        { title: "Context included", desc: "See the sentence around each match before jumping in" },
+        { title: "Counts per document", desc: "Instantly see which files mention a term most" },
+      ]}
+      useCaseSection={
+        <section aria-labelledby="lp-usecase-heading">
+          <h2 id="lp-usecase-heading" className="font-mono text-2xl font-semibold text-[var(--text)] mb-4">
+            From “is it in here?” to “show me everywhere it appears”
+          </h2>
+          <div className="font-sans text-sm text-[var(--text-2)] leading-relaxed space-y-4 max-w-3xl">
+            <p>Sometimes you don’t want the first match — you want all of them. A student building flashcards wants every place a concept appears in the textbook; an editor wants every use of a deprecated product name; a paralegal wants every mention of a party across a brief.</p>
+            <p>PDFSearch returns the complete list with page numbers and surrounding text, so you can scan occurrences like search-engine results instead of paging through a viewer. It works the same across <Link href="/search-multiple-pdfs" className="text-[var(--accent)] hover:underline">many files at once</Link>, and match counts per document double as a relevance ranking. Students, this one’s built for you — <Link href="/pdf-search-for-students" className="text-[var(--accent)] hover:underline">PDF search for students</Link> walks through exam-prep workflows.</p>
+          </div>
+        </section>
+      }
+      relatedTools={[
+        { href: "/search-text-in-pdf", title: "Search Text in PDF", description: "Precision lookups with case and whole-word modes." },
+        { href: "/pdf-search-for-students", title: "PDF Search for Students", description: "Textbooks, lecture notes, exam prep." },
+        { href: "/how-to-search-pdf", title: "How to Search a PDF", description: "Start-to-finish basics." },
+      ]}
+      relatedArticles={[
+        { href: "/blog/search-multiple-pdfs-online", title: "How to Search Multiple PDFs Online", description: "Batch workflows tutorial." },
       ]}
       schemaMarkup={[faqSchema, breadcrumbSchema]}
     />

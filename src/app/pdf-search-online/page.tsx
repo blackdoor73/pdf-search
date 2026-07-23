@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { LandingPageShell } from "@/components/LandingPageShell";
 
 export const metadata: Metadata = {
@@ -112,6 +113,32 @@ export default function PdfSearchOnlinePage() {
           answer:
             "PDFSearch works with non-encrypted PDFs. Password-protected files cannot be searched without first unlocking them.",
         },
+      ]}
+      breadcrumbLabel="PDF Search Online"
+      trustSignals={[
+        { title: "Zero install", desc: "No desktop app, no extension, no admin rights needed" },
+        { title: "Any modern browser", desc: "Chrome, Firefox, Safari, Edge — desktop or mobile" },
+        { title: "Private by architecture", desc: "Search runs in the page; files aren’t sent anywhere" },
+      ]}
+      useCaseSection={
+        <section aria-labelledby="lp-usecase-heading">
+          <h2 id="lp-usecase-heading" className="font-mono text-2xl font-semibold text-[var(--text)] mb-4">
+            Why search PDFs in the browser at all?
+          </h2>
+          <div className="font-sans text-sm text-[var(--text-2)] leading-relaxed space-y-4 max-w-3xl">
+            <p>Locked-down work laptops, school Chromebooks, a borrowed machine — there are plenty of situations where installing Acrobat or a desktop indexer isn’t an option. An online PDF search tool sidesteps all of that: open a tab, load your files, search.</p>
+            <p>The usual worry with “online” tools is uploading sensitive documents to someone’s server. PDFSearch works differently — the parsing happens inside your browser tab, which is the same reason it’s free to run. That makes it usable for material you’d never upload: HR files, client contracts, <Link href="/search-government-documents" className="text-[var(--accent)] hover:underline">government records</Link>.</p>
+            <p>If you’re comparing options, <Link href="/free-pdf-search-engine" className="text-[var(--accent)] hover:underline">free PDF search engine</Link> explains what to look for, and <Link href="/blog/best-pdf-search-tools" className="text-[var(--accent)] hover:underline">our tools roundup</Link> compares the landscape honestly, including when a desktop indexer is the better choice.</p>
+          </div>
+        </section>
+      }
+      relatedTools={[
+        { href: "/free-pdf-search-engine", title: "Free PDF Search Engine", description: "What “free” should actually include." },
+        { href: "/how-to-search-pdf", title: "How to Search a PDF", description: "The fundamentals, step by step." },
+        { href: "/search-multiple-pdfs", title: "Search Multiple PDFs", description: "One query across many documents." },
+      ]}
+      relatedArticles={[
+        { href: "/blog/best-pdf-search-tools", title: "Best PDF Search Tools", description: "Browser tools vs desktop indexers vs viewers." },
       ]}
       schemaMarkup={[faqSchema, breadcrumbSchema]}
     />

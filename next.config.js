@@ -16,8 +16,9 @@ const nextConfig = {
         ],
       },
       {
-        // Cache SEO pages for 1 hour at CDN edge
-        source: "/(how-to-search-pdf|search-multiple-pdfs|pdf-search-online|search-text-in-pdf|find-words-in-pdf|free-pdf-search-engine|search-scanned-pdf|bulk-pdf-search|blog)(.*)",
+        // Cache SEO/content pages for 1 hour at CDN edge
+        source:
+          "/(how-to-search-pdf|search-multiple-pdfs|pdf-search-online|search-text-in-pdf|find-words-in-pdf|free-pdf-search-engine|search-scanned-pdf|bulk-pdf-search|search-government-documents|search-technical-manuals|pdf-search-for-students|pdf-search-for-researchers|pdf-search-for-lawyers|pdf-search-for-finance|pdf-search-for-recruiters|pdf-search-for-engineers|blog|changelog)(.*)",
         headers: [
           { key: "Cache-Control", value: "public, s-maxage=3600, stale-while-revalidate=86400" },
         ],

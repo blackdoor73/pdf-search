@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { LandingPageShell } from "@/components/LandingPageShell";
 
 export const metadata: Metadata = {
@@ -112,6 +113,33 @@ export default function SearchMultiplePdfsPage() {
           answer:
             "Yes. PDFSearch is designed for large-scale document search. Load your entire PDF collection and search all of them at once — ideal for document-heavy workflows.",
         },
+      ]}
+      breadcrumbLabel="Search Multiple PDFs"
+      trustSignals={[
+        { title: "One query, every file", desc: "Stop repeating the same search in tab after tab" },
+        { title: "Grouped results", desc: "Matches organized by document with page numbers" },
+        { title: "Mix files and URLs", desc: "Combine local PDFs with links to public ones" },
+      ]}
+      useCaseSection={
+        <section aria-labelledby="lp-usecase-heading">
+          <h2 id="lp-usecase-heading" className="font-mono text-2xl font-semibold text-[var(--text)] mb-4">
+            When the answer is spread across documents
+          </h2>
+          <div className="font-sans text-sm text-[var(--text-2)] leading-relaxed space-y-4 max-w-3xl">
+            <p>Most real questions don’t live in one file. A researcher checking which of thirty papers used a particular method, a student hunting a definition across lecture slides, or an analyst comparing wording between report versions all need the same thing: one search, many documents, results side by side.</p>
+            <p>Load everything at once — up to 200 files — and every match comes back grouped by document. For very large folders the <Link href="/bulk-pdf-search" className="text-[var(--accent)] hover:underline">bulk PDF search</Link> workflow adds CSV export for reporting; if your files are scans, read <Link href="/search-scanned-pdf" className="text-[var(--accent)] hover:underline">searching scanned PDFs</Link> first to understand what’s possible.</p>
+            <p>Researchers doing literature reviews get the most out of this — see <Link href="/pdf-search-for-researchers" className="text-[var(--accent)] hover:underline">PDF search for researchers</Link> for that workflow end to end.</p>
+          </div>
+        </section>
+      }
+      relatedTools={[
+        { href: "/bulk-pdf-search", title: "Bulk PDF Search", description: "Batch-search entire folders with CSV export." },
+        { href: "/find-words-in-pdf", title: "Find Words in PDF", description: "Every occurrence of a word, with context." },
+        { href: "/pdf-search-for-researchers", title: "PDF Search for Researchers", description: "Literature-review workflows across many papers." },
+      ]}
+      relatedArticles={[
+        { href: "/blog/search-multiple-pdfs-online", title: "How to Search Multiple PDFs Online", description: "The full tutorial." },
+        { href: "/blog/ctrlf-vs-advanced-pdf-search", title: "Ctrl+F vs Advanced PDF Search", description: "Why find-in-page doesn't scale." },
       ]}
       schemaMarkup={[faqSchema, breadcrumbSchema]}
     />

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { LandingPageShell } from "@/components/LandingPageShell";
 
 export const metadata: Metadata = {
@@ -104,6 +105,33 @@ export default function BulkPdfSearchPage() {
           answer:
             "PDFSearch shows a real-time progress bar as it processes each file. You can see which document is being searched and how many matches have been found so far.",
         },
+      ]}
+      breadcrumbLabel="Bulk PDF Search"
+      trustSignals={[
+        { title: "200 files per pass", desc: "Load an entire folder and search it as one corpus" },
+        { title: "Parallel processing", desc: "Five files parsed concurrently, right in your browser" },
+        { title: "CSV export built in", desc: "Every match with file, page, and context — one click" },
+      ]}
+      useCaseSection={
+        <section aria-labelledby="lp-usecase-heading">
+          <h2 id="lp-usecase-heading" className="font-mono text-2xl font-semibold text-[var(--text)] mb-4">
+            Built for batch jobs, not one-off lookups
+          </h2>
+          <div className="font-sans text-sm text-[var(--text-2)] leading-relaxed space-y-4 max-w-3xl">
+            <p>Bulk search matters most when the answer could be in any of dozens of files: a compliance officer confirming a clause was removed from every contract in a folder, an auditor tracing an invoice number through a year of statements, or a records clerk checking which of 80 scanned releases mention a specific name. Opening files one by one doesn’t just waste time — it invites misses.</p>
+            <p>PDFSearch treats the whole batch as a single searchable corpus. Results come back grouped by document with page numbers, so “which files mention X” is answered at a glance. If you routinely work with just a handful of files instead, the lighter <Link href="/search-multiple-pdfs" className="text-[var(--accent)] hover:underline">multi-PDF search</Link> workflow may fit better; for one long document, see <Link href="/how-to-search-pdf" className="text-[var(--accent)] hover:underline">how to search a PDF</Link>.</p>
+            <p>Batches of confidential documents never leave your machine — parsing happens in your browser, which is why legal teams use it for <Link href="/pdf-search-for-lawyers" className="text-[var(--accent)] hover:underline">discovery and contract review</Link> without a vendor agreement.</p>
+          </div>
+        </section>
+      }
+      relatedTools={[
+        { href: "/search-multiple-pdfs", title: "Search Multiple PDFs", description: "One query across a set of documents, grouped by file." },
+        { href: "/free-pdf-search-engine", title: "Free PDF Search Engine", description: "A private search engine for your own document library." },
+        { href: "/pdf-search-for-lawyers", title: "PDF Search for Lawyers", description: "Search discovery batches and contracts confidentially." },
+      ]}
+      relatedArticles={[
+        { href: "/blog/search-multiple-pdfs-online", title: "How to Search Multiple PDFs Online", description: "Step-by-step tutorial for batch searching." },
+        { href: "/blog/best-pdf-search-tools", title: "Best PDF Search Tools", description: "An honest comparison of the options." },
       ]}
       schemaMarkup={[faqSchema, breadcrumbSchema]}
     />
