@@ -31,11 +31,19 @@ export function Modal({
   const panelRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<Element | null>(null);
 
+  // Keep the latest onClose in a ref so handleKeyDown stays referentially
+  // stable — otherwise an inline onClose prop re-runs the open effect on
+  // every parent re-render (each keystroke) and re-steals focus.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== "Tab" || !panelRef.current) return;
@@ -55,7 +63,7 @@ export function Modal({
         first.focus();
       }
     },
-    [onClose]
+    []
   );
 
   useEffect(() => {
