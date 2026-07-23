@@ -1,4 +1,4 @@
-const siteUrl = "https://www.pdfsearch.info";
+import { siteUrl } from "@/lib/seo/site";
 
 export const homepageFaqSchema = {
   "@context": "https://schema.org",

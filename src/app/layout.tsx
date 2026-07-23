@@ -3,6 +3,7 @@ import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
 import { Analytics } from "@/components/Analytics";
+import { siteUrl } from "@/lib/seo/site";
 
 const plexMono = IBM_Plex_Mono({
   subsets: ["latin"],
@@ -17,8 +18,6 @@ const plexSans = IBM_Plex_Sans({
   variable: "--font-sans",
   display: "swap",
 });
-
-const siteUrl = "https://www.pdfsearch.info";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
