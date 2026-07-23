@@ -18,6 +18,18 @@ export function clampDays(raw: string | null, fallback = 30): number {
   return Math.min(180, Math.max(1, Math.floor(n)));
 }
 
+export function clampPage(raw: string | null): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(10_000, Math.floor(n));
+}
+
+export function clampPageSize(raw: string | null, fallback = 25): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 1) return fallback;
+  return Math.min(100, Math.floor(n));
+}
+
 // ─── Overview ──────────────────────────────────────────────────────────────────
 
 export async function getOverview(days: number) {
@@ -428,35 +440,234 @@ export async function getFirstPartySources(days: number) {
   }));
 }
 
-// ─── Raw visitors (System page — verify identity counting against the DB) ────
+// ─── Visitors (paginated, filterable) ─────────────────────────────────────────
 
-export async function getVisitorsDebug() {
+export interface VisitorFilters {
+  days: number;
+  page: number;
+  pageSize: number;
+  country?: string;
+  device?: string;
+  /** Prefix match on anon_id or ip_hash. */
+  q?: string;
+}
+
+function visitorWhere(f: VisitorFilters): { where: string; params: unknown[] } {
+  const clauses = ["ts > now() - make_interval(days => $1)"];
+  const params: unknown[] = [f.days];
+  if (f.country) {
+    params.push(f.country);
+    clauses.push(`country = $${params.length}`);
+  }
+  if (f.device) {
+    params.push(f.device);
+    clauses.push(`device = $${params.length}`);
+  }
+  if (f.q) {
+    params.push(`${f.q}%`);
+    clauses.push(
+      `(anon_id LIKE $${params.length} OR ip_hash LIKE $${params.length})`
+    );
+  }
+  return { where: clauses.join(" AND "), params };
+}
+
+export async function getVisitors(f: VisitorFilters) {
   const sql = getSql();
-  const rows = (await sql`
-    SELECT
-      left(anon_id, 8) AS visitor,
-      to_char(min(ts), 'MM-DD HH24:MI') AS first_seen,
-      to_char(max(ts), 'MM-DD HH24:MI') AS last_seen,
-      count(*) AS events,
-      count(DISTINCT session_id) AS sessions,
-      max(device) AS device,
-      max(browser) AS browser,
-      coalesce(max(country), '') AS country
+  const { where, params } = visitorWhere(f);
+
+  const [kpis] = (await sql.query(
+    `SELECT count(*)                             AS unique_visitors,
+            count(*) FILTER (WHERE visits > 1)   AS returning_visitors,
+            coalesce(sum(visits), 0)             AS total_visits
+     FROM (
+       SELECT anon_id, count(DISTINCT session_id) AS visits
+       FROM events WHERE ${where} GROUP BY anon_id
+     ) v`,
+    params
+  )) as Row[];
+
+  const limit = f.pageSize;
+  const offset = (f.page - 1) * f.pageSize;
+  const rows = (await sql.query(
+    `SELECT anon_id,
+            max(ip_hash)  AS ip_hash,
+            to_char(min(ts), 'YYYY-MM-DD HH24:MI') AS first_seen,
+            to_char(max(ts), 'YYYY-MM-DD HH24:MI') AS last_seen,
+            count(*)      AS events,
+            count(DISTINCT session_id) AS visits,
+            max(country)  AS country,
+            max(region)   AS region,
+            max(city)     AS city,
+            max(device)   AS device,
+            max(browser)  AS browser,
+            max(os)       AS os,
+            max(lang)     AS lang,
+            max(tz)       AS tz,
+            max(referrer) AS referrer
+     FROM events WHERE ${where}
+     GROUP BY anon_id
+     ORDER BY max(ts) DESC
+     LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+    [...params, limit, offset]
+  )) as Row[];
+
+  const uniqueVisitors = num(kpis?.unique_visitors);
+  const totalVisits = num(kpis?.total_visits);
+  return {
+    kpis: {
+      uniqueVisitors,
+      returningVisitors: num(kpis?.returning_visitors),
+      totalVisits,
+      avgVisitsPerVisitor: uniqueVisitors ? totalVisits / uniqueVisitors : 0,
+    },
+    rows: rows.map((r) => ({
+      anonId: String(r.anon_id),
+      ipHash: r.ip_hash ? String(r.ip_hash) : "",
+      firstSeen: String(r.first_seen),
+      lastSeen: String(r.last_seen),
+      events: num(r.events),
+      visits: num(r.visits),
+      country: String(r.country ?? ""),
+      region: String(r.region ?? ""),
+      city: String(r.city ?? ""),
+      device: String(r.device ?? ""),
+      browser: String(r.browser ?? ""),
+      os: String(r.os ?? ""),
+      lang: String(r.lang ?? ""),
+      tz: String(r.tz ?? ""),
+      referrer: String(r.referrer ?? ""),
+    })),
+    total: uniqueVisitors,
+    page: f.page,
+    pageSize: f.pageSize,
+  };
+}
+
+export async function getVisitorDetail(id: string) {
+  const sql = getSql();
+
+  const [profile] = (await sql`
+    SELECT anon_id, max(ip_hash) AS ip_hash,
+      to_char(min(ts), 'YYYY-MM-DD HH24:MI') AS first_seen,
+      to_char(max(ts), 'YYYY-MM-DD HH24:MI') AS last_seen,
+      count(*) AS events, count(DISTINCT session_id) AS visits,
+      max(country) AS country, max(region) AS region, max(city) AS city,
+      max(device) AS device, max(browser) AS browser, max(os) AS os,
+      max(lang) AS lang, max(tz) AS tz, max(referrer) AS referrer
     FROM events
+    WHERE anon_id = ${id} OR ip_hash = ${id}
     GROUP BY anon_id
-    ORDER BY max(ts) DESC
-    LIMIT 25
+    LIMIT 1
   `) as Row[];
-  return rows.map((r) => ({
-    visitor: String(r.visitor),
-    firstSeen: String(r.first_seen),
-    lastSeen: String(r.last_seen),
-    events: num(r.events),
-    sessions: num(r.sessions),
-    device: String(r.device ?? ""),
-    browser: String(r.browser ?? ""),
-    country: String(r.country ?? ""),
-  }));
+
+  if (!profile) return null;
+  const anonId = String(profile.anon_id);
+
+  const events = (await sql`
+    SELECT to_char(ts, 'YYYY-MM-DD HH24:MI:SS') AS at, event, page,
+      CASE
+        WHEN event = 'search' THEN left(coalesce(props->>'q',''), 40)
+        WHEN event = 'pdf_upload' THEN (props->>'count') || ' file(s)'
+        WHEN event IN ('client_error','pdf_load_error') THEN left(coalesce(props->>'message', props->>'code', ''), 60)
+        ELSE ''
+      END AS detail
+    FROM events
+    WHERE anon_id = ${anonId}
+    ORDER BY ts DESC LIMIT 50
+  `) as Row[];
+
+  const documents = (await sql`
+    SELECT id, to_char(ts, 'YYYY-MM-DD HH24:MI') AS at, filename,
+      size_bytes, page_count, source, status
+    FROM pdf_documents
+    WHERE anon_id = ${anonId}
+    ORDER BY ts DESC LIMIT 25
+  `) as Row[];
+
+  return {
+    profile: {
+      anonId,
+      ipHash: profile.ip_hash ? String(profile.ip_hash) : "",
+      firstSeen: String(profile.first_seen),
+      lastSeen: String(profile.last_seen),
+      events: num(profile.events),
+      visits: num(profile.visits),
+      country: String(profile.country ?? ""),
+      region: String(profile.region ?? ""),
+      city: String(profile.city ?? ""),
+      device: String(profile.device ?? ""),
+      browser: String(profile.browser ?? ""),
+      os: String(profile.os ?? ""),
+      lang: String(profile.lang ?? ""),
+      tz: String(profile.tz ?? ""),
+      referrer: String(profile.referrer ?? ""),
+    },
+    events: events.map((r) => ({
+      at: String(r.at),
+      event: String(r.event),
+      page: String(r.page ?? ""),
+      detail: String(r.detail ?? ""),
+    })),
+    documents: documents.map((r) => ({
+      id: num(r.id),
+      at: String(r.at),
+      filename: String(r.filename),
+      sizeBytes: num(r.size_bytes),
+      pageCount: num(r.page_count),
+      source: String(r.source),
+      status: String(r.status),
+    })),
+  };
+}
+
+// ─── Geography ────────────────────────────────────────────────────────────────
+
+export async function getGeo(days: number) {
+  const sql = getSql();
+
+  const countries = (await sql`
+    SELECT country, count(DISTINCT anon_id) AS visitors, count(*) AS events
+    FROM events
+    WHERE ts > now() - make_interval(days => ${days}) AND coalesce(country, '') <> ''
+    GROUP BY country ORDER BY visitors DESC LIMIT 50
+  `) as Row[];
+
+  const cities = (await sql`
+    SELECT city, country, max(region) AS region, count(DISTINCT anon_id) AS visitors
+    FROM events
+    WHERE ts > now() - make_interval(days => ${days}) AND coalesce(city, '') <> ''
+    GROUP BY city, country ORDER BY visitors DESC LIMIT 100
+  `) as Row[];
+
+  // Coarse 0.1° binning — heatmap fidelity without per-visitor precision.
+  const points = (await sql`
+    SELECT round(lat::numeric, 1) AS lat, round(lon::numeric, 1) AS lon,
+      count(DISTINCT anon_id) AS visitors
+    FROM events
+    WHERE ts > now() - make_interval(days => ${days})
+      AND lat IS NOT NULL AND lon IS NOT NULL
+    GROUP BY 1, 2 ORDER BY visitors DESC LIMIT 500
+  `) as Row[];
+
+  return {
+    countries: countries.map((r) => ({
+      country: String(r.country),
+      visitors: num(r.visitors),
+      events: num(r.events),
+    })),
+    cities: cities.map((r) => ({
+      city: String(r.city),
+      country: String(r.country ?? ""),
+      region: String(r.region ?? ""),
+      visitors: num(r.visitors),
+    })),
+    points: points.map((r) => ({
+      lat: Number(r.lat),
+      lon: Number(r.lon),
+      visitors: num(r.visitors),
+    })),
+  };
 }
 
 // ─── Funnel (Growth Insights) ─────────────────────────────────────────────────
@@ -578,53 +789,318 @@ export async function getAlerts(): Promise<Alert[]> {
   return alerts;
 }
 
-// ─── CSV export ────────────────────────────────────────────────────────────────
+// ─── Documents (pdf_documents metadata rows) ──────────────────────────────────
 
-function toCsv(headers: string[], rows: (string | number | null)[][]): string {
+export interface DocumentFilters {
+  q?: string;
+  from?: string; // YYYY-MM-DD
+  to?: string; // YYYY-MM-DD (inclusive)
+  minPages?: number;
+  maxPages?: number;
+  minBytes?: number;
+  maxBytes?: number;
+  status?: "ok" | "error";
+  source?: "file" | "url";
+  dupesOnly?: boolean;
+  sort?: "ts" | "size_bytes" | "page_count";
+  dir?: "asc" | "desc";
+  page: number;
+  pageSize: number;
+}
+
+const DOC_SORT_COLUMNS = new Set(["ts", "size_bytes", "page_count"]);
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Pure WHERE/ORDER/LIMIT assembly for the documents listing — exported so it
+ * can be unit-tested without a database. All values are parameterized; sort
+ * column/direction are whitelist-validated.
+ */
+export function buildDocumentsQuery(f: DocumentFilters): {
+  text: string;
+  countText: string;
+  params: unknown[];
+} {
+  const clauses: string[] = ["TRUE"];
+  const params: unknown[] = [];
+  const add = (clause: (n: number) => string, value: unknown) => {
+    params.push(value);
+    clauses.push(clause(params.length));
+  };
+
+  if (f.q) add((n) => `filename ILIKE '%' || $${n} || '%'`, f.q.slice(0, 100));
+  if (f.from && DATE_RE.test(f.from)) add((n) => `ts >= $${n}::date`, f.from);
+  if (f.to && DATE_RE.test(f.to))
+    add((n) => `ts < $${n}::date + interval '1 day'`, f.to);
+  if (f.minPages != null) add((n) => `page_count >= $${n}`, f.minPages);
+  if (f.maxPages != null) add((n) => `page_count <= $${n}`, f.maxPages);
+  if (f.minBytes != null) add((n) => `size_bytes >= $${n}`, f.minBytes);
+  if (f.maxBytes != null) add((n) => `size_bytes <= $${n}`, f.maxBytes);
+  if (f.status === "ok" || f.status === "error")
+    add((n) => `status = $${n}`, f.status);
+  if (f.source === "file" || f.source === "url")
+    add((n) => `source = $${n}`, f.source);
+  if (f.dupesOnly) {
+    clauses.push(
+      `sha256 IN (SELECT sha256 FROM pdf_documents
+                  WHERE coalesce(sha256, '') <> ''
+                  GROUP BY sha256 HAVING count(*) > 1)`
+    );
+  }
+
+  const where = clauses.join(" AND ");
+  const sort = DOC_SORT_COLUMNS.has(f.sort ?? "") ? f.sort : "ts";
+  const dir = f.dir === "asc" ? "ASC" : "DESC";
+  const limit = `$${params.length + 1}`;
+  const offset = `$${params.length + 2}`;
+
+  return {
+    text: `SELECT id, to_char(ts, 'YYYY-MM-DD HH24:MI') AS at, filename,
+             size_bytes, page_count, sha256, title, author, subject, keywords,
+             creator, producer, pdf_created, pdf_modified, source, status,
+             processing_ms, country, city, anon_id,
+             CASE WHEN coalesce(sha256, '') = '' THEN 1
+                  ELSE count(*) OVER (PARTITION BY sha256) END AS duplicates
+           FROM pdf_documents
+           WHERE ${where}
+           ORDER BY ${sort} ${dir} NULLS LAST, id DESC
+           LIMIT ${limit} OFFSET ${offset}`,
+    countText: `SELECT count(*) AS total FROM pdf_documents WHERE ${where}`,
+    params,
+  };
+}
+
+export async function getDocuments(f: DocumentFilters) {
+  const sql = getSql();
+  const { text, countText, params } = buildDocumentsQuery(f);
+
+  const [countRow] = (await sql.query(countText, params)) as Row[];
+  const rows = (await sql.query(text, [
+    ...params,
+    f.pageSize,
+    (f.page - 1) * f.pageSize,
+  ])) as Row[];
+
+  return {
+    rows: rows.map((r) => ({
+      id: num(r.id),
+      at: String(r.at),
+      filename: String(r.filename),
+      sizeBytes: num(r.size_bytes),
+      pageCount: num(r.page_count),
+      sha256: r.sha256 ? String(r.sha256) : "",
+      title: String(r.title ?? ""),
+      author: String(r.author ?? ""),
+      subject: String(r.subject ?? ""),
+      keywords: String(r.keywords ?? ""),
+      creator: String(r.creator ?? ""),
+      producer: String(r.producer ?? ""),
+      pdfCreated: String(r.pdf_created ?? ""),
+      pdfModified: String(r.pdf_modified ?? ""),
+      source: String(r.source),
+      status: String(r.status),
+      processingMs: num(r.processing_ms),
+      country: String(r.country ?? ""),
+      city: String(r.city ?? ""),
+      anonId: String(r.anon_id ?? ""),
+      duplicates: num(r.duplicates),
+    })),
+    total: num(countRow?.total),
+    page: f.page,
+    pageSize: f.pageSize,
+  };
+}
+
+export async function getDocInsights(days: number) {
+  const sql = getSql();
+
+  const [cards] = (await sql`
+    SELECT
+      count(*)                                        AS total_docs,
+      coalesce(sum(size_bytes), 0)                    AS total_bytes,
+      avg(size_bytes)                                 AS avg_bytes,
+      avg(page_count)                                 AS avg_pages,
+      percentile_cont(0.5) WITHIN GROUP (ORDER BY page_count) AS median_pages,
+      avg(processing_ms)                              AS avg_processing_ms,
+      count(*) FILTER (WHERE status = 'error')        AS errors,
+      (SELECT count(*) FROM (
+         SELECT sha256 FROM pdf_documents
+         WHERE coalesce(sha256, '') <> ''
+           AND ts > now() - make_interval(days => ${days})
+         GROUP BY sha256 HAVING count(*) > 1
+       ) d)                                           AS dup_groups
+    FROM pdf_documents
+    WHERE ts > now() - make_interval(days => ${days})
+  `) as Row[];
+
+  const daily = (await sql`
+    SELECT to_char(d.day, 'YYYY-MM-DD') AS date,
+      count(p.*) AS uploads,
+      coalesce(sum(p.size_bytes), 0) AS bytes,
+      round(avg(p.processing_ms)) AS avg_processing_ms
+    FROM generate_series(
+      date_trunc('day', now()) - make_interval(days => ${days} - 1),
+      date_trunc('day', now()),
+      interval '1 day'
+    ) AS d(day)
+    LEFT JOIN pdf_documents p ON p.ts >= d.day AND p.ts < d.day + interval '1 day'
+    GROUP BY d.day ORDER BY d.day
+  `) as Row[];
+
+  // 10 × 5MB buckets across the 50MB per-file limit.
+  const sizeHistogram = (await sql`
+    SELECT width_bucket(size_bytes, 0, 52428800, 10) AS bucket, count(*) AS docs
+    FROM pdf_documents
+    WHERE ts > now() - make_interval(days => ${days}) AND size_bytes IS NOT NULL
+    GROUP BY 1 ORDER BY 1
+  `) as Row[];
+
+  const pageHistogram = (await sql`
+    SELECT width_bucket(page_count, 0, 200, 10) AS bucket, count(*) AS docs
+    FROM pdf_documents
+    WHERE ts > now() - make_interval(days => ${days}) AND page_count IS NOT NULL
+    GROUP BY 1 ORDER BY 1
+  `) as Row[];
+
+  const largest = (await sql`
+    SELECT filename, size_bytes, page_count, to_char(ts, 'YYYY-MM-DD') AS at
+    FROM pdf_documents
+    WHERE ts > now() - make_interval(days => ${days}) AND size_bytes IS NOT NULL
+    ORDER BY size_bytes DESC LIMIT 10
+  `) as Row[];
+
+  const topFilenames = (await sql`
+    SELECT filename, count(*) AS uploads
+    FROM pdf_documents
+    WHERE ts > now() - make_interval(days => ${days})
+    GROUP BY filename HAVING count(*) > 1
+    ORDER BY uploads DESC LIMIT 10
+  `) as Row[];
+
+  // "Document types" ≈ producing application (Word, LaTeX, scanner, …).
+  const topProducers = (await sql`
+    SELECT coalesce(nullif(producer, ''), nullif(creator, ''), 'Unknown') AS producer,
+      count(*) AS docs
+    FROM pdf_documents
+    WHERE ts > now() - make_interval(days => ${days})
+    GROUP BY 1 ORDER BY 2 DESC LIMIT 10
+  `) as Row[];
+
+  return {
+    cards: {
+      totalDocs: num(cards?.total_docs),
+      totalBytes: num(cards?.total_bytes),
+      avgBytes: num(cards?.avg_bytes),
+      avgPages: num(cards?.avg_pages),
+      medianPages: num(cards?.median_pages),
+      avgProcessingMs: num(cards?.avg_processing_ms),
+      errors: num(cards?.errors),
+      dupGroups: num(cards?.dup_groups),
+    },
+    daily: daily.map((r) => ({
+      date: String(r.date),
+      uploads: num(r.uploads),
+      bytes: num(r.bytes),
+      avgProcessingMs: num(r.avg_processing_ms),
+    })),
+    sizeHistogram: sizeHistogram.map((r) => ({
+      bucket: num(r.bucket),
+      label: `${(num(r.bucket) - 1) * 5}–${num(r.bucket) * 5}MB`,
+      docs: num(r.docs),
+    })),
+    pageHistogram: pageHistogram.map((r) => ({
+      bucket: num(r.bucket),
+      label: `${(num(r.bucket) - 1) * 20}–${num(r.bucket) * 20}p`,
+      docs: num(r.docs),
+    })),
+    largest: largest.map((r) => ({
+      filename: String(r.filename),
+      sizeBytes: num(r.size_bytes),
+      pageCount: num(r.page_count),
+      at: String(r.at),
+    })),
+    topFilenames: topFilenames.map((r) => ({
+      filename: String(r.filename),
+      uploads: num(r.uploads),
+    })),
+    topProducers: topProducers.map((r) => ({
+      producer: String(r.producer),
+      docs: num(r.docs),
+    })),
+  };
+}
+
+export async function deleteDocuments(opts: {
+  ids?: number[];
+  sha256?: string;
+}): Promise<{ deleted: number }> {
+  const sql = getSql();
+  if (opts.ids?.length) {
+    const rows = (await sql`
+      DELETE FROM pdf_documents WHERE id = ANY(${opts.ids}) RETURNING id
+    `) as Row[];
+    return { deleted: rows.length };
+  }
+  if (opts.sha256) {
+    const rows = (await sql`
+      DELETE FROM pdf_documents WHERE sha256 = ${opts.sha256} RETURNING id
+    `) as Row[];
+    return { deleted: rows.length };
+  }
+  return { deleted: 0 };
+}
+
+// ─── Report export (CSV / JSON) ───────────────────────────────────────────────
+// No native .xlsx: CSV opens directly in Excel, and a spreadsheet library
+// would add ~1MB to the serverless bundle for no real gain (see
+// docs/ANALYTICS_V2.md). If real xlsx is ever needed, use exceljs on a
+// dedicated route.
+
+export function toCsv(
+  headers: string[],
+  rows: (string | number | null)[][]
+): string {
   const esc = (v: string | number | null) =>
     `"${String(v ?? "").replace(/"/g, '""')}"`;
   return [headers.map(esc).join(","), ...rows.map((r) => r.map(esc).join(","))].join("\n");
 }
 
-export async function exportCsv(report: string, days: number): Promise<{ filename: string; csv: string }> {
-  const stamp = new Date().toISOString().slice(0, 10);
+const EXPORT_PAGE_SIZE = 1000;
 
+async function buildReport(
+  report: string,
+  days: number
+): Promise<{ name: string; headers: string[]; rows: (string | number | null)[][] }> {
   if (report === "daily") {
     const { series } = await getOverview(days);
     return {
-      filename: `pdfsearch-daily-${stamp}.csv`,
-      csv: toCsv(
-        ["date", "visitors", "sessions", "pageviews", "uploads", "searches"],
-        series.map((r) => [r.date, r.visitors, r.sessions, r.pageviews, r.uploads, r.searches])
-      ),
+      name: "daily",
+      headers: ["date", "visitors", "sessions", "pageviews", "uploads", "searches"],
+      rows: series.map((r) => [r.date, r.visitors, r.sessions, r.pageviews, r.uploads, r.searches]),
     };
   }
 
   if (report === "terms") {
     const { topTerms } = await getProduct(days);
     return {
-      filename: `pdfsearch-top-terms-${stamp}.csv`,
-      csv: toCsv(
-        ["term", "searches", "with_results", "avg_matches"],
-        topTerms.map((t) => [t.term, t.searches, t.withResults, t.avgMatches])
-      ),
+      name: "top-terms",
+      headers: ["term", "searches", "with_results", "avg_matches"],
+      rows: topTerms.map((t) => [t.term, t.searches, t.withResults, t.avgMatches]),
     };
   }
 
   if (report === "funnel") {
     const f = await getFunnel(days);
     return {
-      filename: `pdfsearch-funnel-${stamp}.csv`,
-      csv: toCsv(
-        ["stage", "sessions"],
-        [
-          ["Visited", f.sessions],
-          ["Loaded PDFs", f.withUpload],
-          ["Searched", f.withSearch],
-          ["Found results", f.withSuccess],
-          ["Exported CSV", f.withExport],
-        ]
-      ),
+      name: "funnel",
+      headers: ["stage", "sessions"],
+      rows: [
+        ["Visited", f.sessions],
+        ["Loaded PDFs", f.withUpload],
+        ["Searched", f.withSearch],
+        ["Found results", f.withSuccess],
+        ["Exported CSV", f.withExport],
+      ],
     };
   }
 
@@ -632,17 +1108,89 @@ export async function exportCsv(report: string, days: number): Promise<{ filenam
     const cohorts = await getRetention();
     const maxWeeks = Math.max(0, ...cohorts.map((c) => c.weeks.length));
     return {
-      filename: `pdfsearch-retention-${stamp}.csv`,
-      csv: toCsv(
-        ["cohort_week", "size", ...Array.from({ length: maxWeeks }, (_, i) => `week_${i}`)],
-        cohorts.map((c) => [
-          c.cohort,
-          c.size,
-          ...Array.from({ length: maxWeeks }, (_, i) => c.weeks[i] ?? ""),
-        ])
-      ),
+      name: "retention",
+      headers: ["cohort_week", "size", ...Array.from({ length: maxWeeks }, (_, i) => `week_${i}`)],
+      rows: cohorts.map((c) => [
+        c.cohort,
+        c.size,
+        ...Array.from({ length: maxWeeks }, (_, i) => c.weeks[i] ?? ""),
+      ]),
+    };
+  }
+
+  if (report === "visitors") {
+    const { rows } = await getVisitors({ days, page: 1, pageSize: EXPORT_PAGE_SIZE });
+    return {
+      name: "visitors",
+      headers: [
+        "visitor_id", "ip_hash", "first_seen", "last_seen", "visits", "events",
+        "country", "region", "city", "device", "browser", "os", "language", "timezone", "referrer",
+      ],
+      rows: rows.map((v) => [
+        v.anonId, v.ipHash, v.firstSeen, v.lastSeen, v.visits, v.events,
+        v.country, v.region, v.city, v.device, v.browser, v.os, v.lang, v.tz, v.referrer,
+      ]),
+    };
+  }
+
+  if (report === "geo") {
+    const { countries, cities } = await getGeo(days);
+    return {
+      name: "geo",
+      headers: ["type", "country", "region", "city", "visitors", "events"],
+      rows: [
+        ...countries.map((c): (string | number | null)[] => [
+          "country", c.country, "", "", c.visitors, c.events,
+        ]),
+        ...cities.map((c): (string | number | null)[] => [
+          "city", c.country, c.region, c.city, c.visitors, null,
+        ]),
+      ],
+    };
+  }
+
+  if (report === "documents") {
+    const { rows } = await getDocuments({ page: 1, pageSize: EXPORT_PAGE_SIZE });
+    return {
+      name: "documents",
+      headers: [
+        "uploaded_at", "filename", "size_bytes", "page_count", "sha256",
+        "title", "author", "subject", "keywords", "producer",
+        "source", "status", "processing_ms", "country", "city", "duplicates",
+      ],
+      rows: rows.map((d) => [
+        d.at, d.filename, d.sizeBytes, d.pageCount, d.sha256,
+        d.title, d.author, d.subject, d.keywords, d.producer,
+        d.source, d.status, d.processingMs, d.country, d.city, d.duplicates,
+      ]),
     };
   }
 
   throw new Error(`Unknown report: ${report}`);
+}
+
+export async function exportReport(
+  report: string,
+  days: number,
+  format: "csv" | "json"
+): Promise<{ filename: string; contentType: string; body: string }> {
+  const stamp = new Date().toISOString().slice(0, 10);
+  const { name, headers, rows } = await buildReport(report, days);
+
+  if (format === "json") {
+    const objects = rows.map((r) =>
+      Object.fromEntries(headers.map((h, i) => [h, r[i] ?? null]))
+    );
+    return {
+      filename: `pdfsearch-${name}-${stamp}.json`,
+      contentType: "application/json",
+      body: JSON.stringify(objects, null, 2),
+    };
+  }
+
+  return {
+    filename: `pdfsearch-${name}-${stamp}.csv`,
+    contentType: "text/csv; charset=utf-8",
+    body: toCsv(headers, rows),
+  };
 }

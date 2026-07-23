@@ -11,15 +11,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureSchema, isDbConfigured } from "@/lib/db";
 import {
   clampDays,
+  clampPage,
+  clampPageSize,
   getAlerts,
+  getDocInsights,
   getFirstPartySources,
   getFunnel,
+  getGeo,
   getOverview,
   getProduct,
   getRealtime,
   getRetention,
   getSystem,
-  getVisitorsDebug,
+  getVisitorDetail,
+  getVisitors,
 } from "@/lib/admin/queries";
 
 export const runtime = "nodejs";
@@ -53,8 +58,31 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ configured: true, alerts: await getAlerts() });
       case "sources":
         return NextResponse.json({ configured: true, sources: await getFirstPartySources(days) });
-      case "visitors":
-        return NextResponse.json({ configured: true, visitors: await getVisitorsDebug() });
+      case "visitors": {
+        const p = req.nextUrl.searchParams;
+        return NextResponse.json({
+          configured: true,
+          ...(await getVisitors({
+            days,
+            page: clampPage(p.get("page")),
+            pageSize: clampPageSize(p.get("pageSize")),
+            country: p.get("country") ?? undefined,
+            device: p.get("device") ?? undefined,
+            q: p.get("q")?.slice(0, 64) ?? undefined,
+          })),
+        });
+      }
+      case "visitor": {
+        const id = req.nextUrl.searchParams.get("id");
+        if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+        const detail = await getVisitorDetail(id.slice(0, 64));
+        if (!detail) return NextResponse.json({ error: "Visitor not found" }, { status: 404 });
+        return NextResponse.json({ configured: true, ...detail });
+      }
+      case "geo":
+        return NextResponse.json({ configured: true, ...(await getGeo(days)) });
+      case "docinsights":
+        return NextResponse.json({ configured: true, ...(await getDocInsights(days)) });
       default:
         return NextResponse.json({ error: `Unknown section: ${section}` }, { status: 400 });
     }
