@@ -25,11 +25,11 @@ let pdfjsLib: typeof import("pdfjs-dist") | null = null;
 async function getPdfjsLib() {
   if (pdfjsLib) return pdfjsLib;
   const lib = await import("pdfjs-dist");
-  // Use the CDN-hosted worker. import.meta.url is unreliable in Next.js App Router
-  // because the server bundle resolves it differently from the browser.
-  // The CDN worker is pinned to the same version as pdfjs-dist in package.json.
-  lib.GlobalWorkerOptions.workerSrc =
-    `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${lib.version}/pdf.worker.min.mjs`;
+  // Self-hosted worker, copied from the installed pdfjs-dist by
+  // scripts/copy-pdf-worker.mjs (predev/prebuild) so the version always
+  // matches package.json. Same-origin — no CDN dependency, no extra CSP
+  // allowance, no cross-origin latency on first search.
+  lib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
   pdfjsLib = lib;
   return lib;
 }

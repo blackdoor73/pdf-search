@@ -35,14 +35,17 @@ const nextConfig = {
           },
           {
             key: "Content-Security-Policy",
+            // pdf.js worker is self-hosted (scripts/copy-pdf-worker.mjs), so
+            // cdnjs is gone. GA4 + Microsoft Clarity are allowed — both load
+            // only when their NEXT_PUBLIC_* env vars are set.
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: https://cdnjs.cloudflare.com",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: https://www.googletagmanager.com https://www.clarity.ms",
               "style-src 'self' 'unsafe-inline'",
               "font-src 'self' data:",
-              "img-src 'self' data: blob:",
-              "worker-src 'self' blob: https://cdnjs.cloudflare.com",
-              "connect-src 'self' https://cdnjs.cloudflare.com",
+              "img-src 'self' data: blob: https://*.google-analytics.com https://www.googletagmanager.com https://*.clarity.ms",
+              "worker-src 'self' blob:",
+              "connect-src 'self' https://*.google-analytics.com https://www.googletagmanager.com https://*.clarity.ms",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

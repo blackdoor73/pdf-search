@@ -4,3 +4,4 @@ tsconfig.tsbuildinfo
 .claude/
 .env*.local
 .env
+public/pdf.worker.min.mjs
