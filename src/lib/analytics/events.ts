@@ -26,6 +26,10 @@ export const EVENT_NAMES = [
   "pdf_upload",
   "pdf_url_added",
   "pdf_load_error",
+  // Per-document metadata (routed to the pdf_documents table at ingestion).
+  // Props: filename, sizeBytes, pageCount, sha256, title, author, subject,
+  // keywords, creator, producer, created, modified, source, status, processingMs.
+  "pdf_meta",
   "search",
   "search_error",
   "export_csv",
