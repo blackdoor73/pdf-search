@@ -27,6 +27,8 @@
 import { NextRequest } from "next/server";
 import { trackBatchSchema, MAX_QUERY_LEN } from "@/lib/analytics/events";
 import { isBotUserAgent } from "@/lib/analytics/bots";
+import { parseUa } from "@/lib/analytics/ua";
+import { hashIp } from "@/lib/analytics/ipHash";
 import { ADMIN_COOKIE, verifySessionToken } from "@/lib/admin/auth";
 import { ensureSchema, getSql, isDbConfigured } from "@/lib/db";
 
@@ -49,26 +51,28 @@ function rateLimited(ip: string): boolean {
   return entry.count > RATE_LIMIT_PER_MIN;
 }
 
-function parseUa(ua: string): { device: string; browser: string } {
-  const device = /iPad|Tablet/i.test(ua)
-    ? "tablet"
-    : /Mobi|Android|iPhone/i.test(ua)
-    ? "mobile"
-    : "desktop";
-  const browser = /Edg\//.test(ua)
-    ? "Edge"
-    : /OPR\/|Opera/.test(ua)
-    ? "Opera"
-    : /SamsungBrowser/.test(ua)
-    ? "Samsung Internet"
-    : /Firefox\//.test(ua)
-    ? "Firefox"
-    : /Chrome\//.test(ua)
-    ? "Chrome"
-    : /Safari\//.test(ua)
-    ? "Safari"
-    : "Other";
-  return { device, browser };
+/** Vercel geo headers + request-derived enrichment shared by both tables. */
+function readGeo(req: NextRequest) {
+  const dec = (v: string | null): string | null => {
+    if (!v) return null;
+    try {
+      return decodeURIComponent(v); // Vercel URI-encodes city names
+    } catch {
+      return v;
+    }
+  };
+  const flt = (v: string | null): number | null => {
+    const n = v ? parseFloat(v) : NaN;
+    return Number.isFinite(n) ? n : null;
+  };
+  return {
+    country: req.headers.get("x-vercel-ip-country"),
+    region: dec(req.headers.get("x-vercel-ip-country-region")),
+    city: dec(req.headers.get("x-vercel-ip-city")),
+    lat: flt(req.headers.get("x-vercel-ip-latitude")),
+    lon: flt(req.headers.get("x-vercel-ip-longitude")),
+    tzHeader: req.headers.get("x-vercel-ip-timezone"),
+  };
 }
 
 async function isAdminTraffic(req: NextRequest): Promise<boolean> {
@@ -107,8 +111,14 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return NO_CONTENT;
     const batch = parsed.data;
 
-    const country = req.headers.get("x-vercel-ip-country") ?? null;
-    const { device, browser } = parseUa(ua);
+    const geo = readGeo(req);
+    const ipHash = await hashIp(ip);
+    const tz = batch.tz ?? geo.tzHeader;
+    const lang =
+      batch.lang ??
+      req.headers.get("accept-language")?.split(",")[0]?.trim().slice(0, 32) ??
+      null;
+    const { device, browser, os } = parseUa(ua);
     const keepSearchTerms = process.env.TRACK_SEARCH_TERMS !== "false";
 
     const now = Date.now();
@@ -116,10 +126,22 @@ export async function POST(req: NextRequest) {
     const tsArr: string[] = [];
     const eventArr: string[] = [];
     const propsArr: string[] = [];
+    // pdf_meta events are diverted to the pdf_documents table instead of
+    // the events stream — one row per uploaded document.
+    const docs: { id: string | null; ts: string; props: Record<string, unknown> }[] = [];
+
     for (const ev of batch.events) {
       // Clamp client timestamps to [now - 10min, now] against clock skew.
       const ts =
         ev.ts && ev.ts <= now && ev.ts > now - 10 * 60_000 ? ev.ts : now;
+      if (ev.e === "pdf_meta") {
+        docs.push({
+          id: ev.id ?? null,
+          ts: new Date(ts).toISOString(),
+          props: ev.props,
+        });
+        continue;
+      }
       idArr.push(ev.id ?? null);
       tsArr.push(new Date(ts).toISOString());
       eventArr.push(ev.e);
@@ -134,18 +156,74 @@ export async function POST(req: NextRequest) {
 
     await ensureSchema();
     const sql = getSql();
-    await sql`
-      INSERT INTO events (event_id, ts, anon_id, session_id, event, page, referrer, country, device, browser, props)
-      SELECT event_id, ts, ${batch.aid}, ${batch.sid}, event, ${batch.page ?? null},
-             ${batch.ref ?? null}, ${country}, ${device}, ${browser}, props
-      FROM unnest(
-        ${idArr}::text[],
-        ${tsArr}::timestamptz[],
-        ${eventArr}::text[],
-        ${propsArr}::jsonb[]
-      ) AS t(event_id, ts, event, props)
-      ON CONFLICT (event_id) WHERE event_id IS NOT NULL DO NOTHING
-    `;
+
+    if (eventArr.length > 0) {
+      await sql`
+        INSERT INTO events (event_id, ts, anon_id, session_id, event, page, referrer,
+                            country, region, city, lat, lon,
+                            device, browser, os, lang, tz, ip_hash, props)
+        SELECT event_id, ts, ${batch.aid}, ${batch.sid}, event, ${batch.page ?? null},
+               ${batch.ref ?? null}, ${geo.country}, ${geo.region}, ${geo.city},
+               ${geo.lat}, ${geo.lon}, ${device}, ${browser}, ${os},
+               ${lang}, ${tz}, ${ipHash}, props
+        FROM unnest(
+          ${idArr}::text[],
+          ${tsArr}::timestamptz[],
+          ${eventArr}::text[],
+          ${propsArr}::jsonb[]
+        ) AS t(event_id, ts, event, props)
+        ON CONFLICT (event_id) WHERE event_id IS NOT NULL DO NOTHING
+      `;
+    }
+
+    if (docs.length > 0) {
+      const str = (v: unknown, max = 256): string | null =>
+        typeof v === "string" && v ? v.slice(0, max) : null;
+      const int = (v: unknown): number | null =>
+        typeof v === "number" && Number.isFinite(v)
+          ? Math.max(0, Math.round(v))
+          : null;
+
+      const rows = docs.map((d) => ({
+        event_id: d.id,
+        ts: d.ts,
+        filename: str(d.props.filename) ?? "unknown.pdf",
+        size_bytes: int(d.props.sizeBytes),
+        page_count: int(d.props.pageCount),
+        sha256: str(d.props.sha256, 64),
+        title: str(d.props.title),
+        author: str(d.props.author),
+        subject: str(d.props.subject),
+        keywords: str(d.props.keywords),
+        creator: str(d.props.creator),
+        producer: str(d.props.producer),
+        pdf_created: str(d.props.created, 64),
+        pdf_modified: str(d.props.modified, 64),
+        source: d.props.source === "url" ? "url" : "file",
+        status: d.props.status === "error" ? "error" : "ok",
+        processing_ms: int(d.props.processingMs),
+      }));
+
+      await sql`
+        INSERT INTO pdf_documents (event_id, ts, anon_id, session_id, ip_hash,
+                                   country, region, city,
+                                   filename, size_bytes, page_count, sha256,
+                                   title, author, subject, keywords, creator, producer,
+                                   pdf_created, pdf_modified, source, status, processing_ms)
+        SELECT r.event_id, r.ts, ${batch.aid}, ${batch.sid}, ${ipHash},
+               ${geo.country}, ${geo.region}, ${geo.city},
+               r.filename, r.size_bytes, r.page_count, r.sha256,
+               r.title, r.author, r.subject, r.keywords, r.creator, r.producer,
+               r.pdf_created, r.pdf_modified, r.source, r.status, r.processing_ms
+        FROM jsonb_to_recordset(${JSON.stringify(rows)}::jsonb) AS r(
+          event_id TEXT, ts TIMESTAMPTZ, filename TEXT, size_bytes BIGINT,
+          page_count INT, sha256 TEXT, title TEXT, author TEXT, subject TEXT,
+          keywords TEXT, creator TEXT, producer TEXT, pdf_created TEXT,
+          pdf_modified TEXT, source TEXT, status TEXT, processing_ms INT
+        )
+        ON CONFLICT (event_id) WHERE event_id IS NOT NULL DO NOTHING
+      `;
+    }
 
     return NO_CONTENT;
   } catch {

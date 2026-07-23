@@ -16,8 +16,18 @@ import {
   RangePicker,
   StatCard,
 } from "@/components/admin/ui";
-import { fmtNum, useAdminData } from "@/components/admin/useAdminData";
+import { fmtBytes, fmtFlag, fmtNum, useAdminData } from "@/components/admin/useAdminData";
 import type { Alert } from "@/lib/admin/queries";
+
+interface DocSummary {
+  configured: boolean;
+  cards: { totalDocs: number; totalBytes: number; avgBytes: number; avgProcessingMs: number };
+}
+
+interface GeoSummary {
+  configured: boolean;
+  countries: { country: string; visitors: number }[];
+}
 
 interface OverviewData {
   configured: boolean;
@@ -40,6 +50,12 @@ export default function AdminOverviewPage() {
   const { data: alertsData } = useAdminData<{ alerts: Alert[] }>(
     "/api/admin/stats?section=alerts",
     { refreshMs: 120_000 }
+  );
+  const { data: docs } = useAdminData<DocSummary>(
+    `/api/admin/stats?section=docinsights&days=${days}`
+  );
+  const { data: geo } = useAdminData<GeoSummary>(
+    `/api/admin/stats?section=geo&days=${days}`
   );
 
   if (loading) return <LoadingPanel />;
@@ -100,6 +116,23 @@ export default function AdminOverviewPage() {
         <StatCard label="Searches lifetime" value={fmtNum(k.searches_lifetime)} />
         <StatCard label="Users lifetime" value={fmtNum(k.lifetime_users)} />
       </div>
+
+      {docs?.cards && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard label="Documents tracked" value={fmtNum(docs.cards.totalDocs)} sub={`${days} days · metadata only`} />
+          <StatCard label="Bytes processed" value={fmtBytes(docs.cards.totalBytes)} sub="in-browser" />
+          <StatCard label="Avg PDF size" value={fmtBytes(docs.cards.avgBytes)} />
+          <StatCard
+            label="Top countries"
+            value={
+              geo?.countries?.length
+                ? geo.countries.slice(0, 3).map((c) => fmtFlag(c.country)).join(" ")
+                : "—"
+            }
+            sub={geo?.countries?.slice(0, 3).map((c) => c.country).join(" · ")}
+          />
+        </div>
+      )}
 
       <Panel title={`Visitors & sessions — last ${days} days`}>
         <TrendChart

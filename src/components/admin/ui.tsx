@@ -7,7 +7,7 @@
  */
 
 import { AlertTriangle, Download, Info, RefreshCw, XCircle } from "lucide-react";
-import clsx from "clsx";
+import { cn } from "@/lib/utils";
 import type { Alert } from "@/lib/admin/queries";
 
 export function StatCard({
@@ -36,7 +36,7 @@ export function StatCard({
       <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-3)] mb-2">
         {label}
       </div>
-      <div className={clsx("font-mono text-2xl font-semibold", color)}>{value}</div>
+      <div className={cn("font-mono text-2xl font-semibold", color)}>{value}</div>
       {sub && (
         <div className="font-mono text-[10px] text-[var(--text-3)] mt-1">{sub}</div>
       )}
@@ -56,7 +56,7 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <div className={clsx("card", className)}>
+    <div className={cn("card", className)}>
       <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--border)]">
         <span className="font-mono text-[11px] uppercase tracking-widest text-[var(--text-3)]">
           {title}
@@ -84,7 +84,7 @@ export function RangePicker({
           key={d}
           type="button"
           onClick={() => onChange(d)}
-          className={clsx(
+          className={cn(
             "px-3 py-1.5 font-mono text-[11px] transition-colors",
             days === d
               ? "bg-[var(--accent)] text-black font-semibold"
@@ -100,14 +100,57 @@ export function RangePicker({
 
 export function ExportButton({ report, days }: { report: string; days: number }) {
   return (
-    <a
-      href={`/api/admin/export?report=${report}&days=${days}`}
-      className="inline-flex items-center gap-1.5 font-mono text-[10px] text-[var(--text-3)] hover:text-[var(--accent)] transition-colors uppercase tracking-wider"
-      title="Download CSV"
-    >
-      <Download className="w-3 h-3" />
-      CSV
-    </a>
+    <span className="inline-flex items-center gap-3">
+      {(["csv", "json"] as const).map((format) => (
+        <a
+          key={format}
+          href={`/api/admin/export?report=${report}&days=${days}&format=${format}`}
+          className="inline-flex items-center gap-1.5 font-mono text-[10px] text-[var(--text-3)] hover:text-[var(--accent)] transition-colors uppercase tracking-wider"
+          title={`Download ${format.toUpperCase()} (CSV opens in Excel)`}
+        >
+          <Download className="w-3 h-3" />
+          {format}
+        </a>
+      ))}
+    </span>
+  );
+}
+
+export function Pager({
+  page,
+  pageSize,
+  total,
+  onPage,
+}: {
+  page: number;
+  pageSize: number;
+  total: number;
+  onPage: (p: number) => void;
+}) {
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  if (pages <= 1) return null;
+  return (
+    <div className="flex items-center justify-between pt-3 font-mono text-[11px] text-[var(--text-3)]">
+      <button
+        type="button"
+        disabled={page <= 1}
+        onClick={() => onPage(page - 1)}
+        className="px-3 py-1 border border-[var(--border)] disabled:opacity-40 hover:text-[var(--text)] transition-colors"
+      >
+        ← Prev
+      </button>
+      <span>
+        Page {page} of {pages} · {total.toLocaleString()} rows
+      </span>
+      <button
+        type="button"
+        disabled={page >= pages}
+        onClick={() => onPage(page + 1)}
+        className="px-3 py-1 border border-[var(--border)] disabled:opacity-40 hover:text-[var(--text)] transition-colors"
+      >
+        Next →
+      </button>
+    </div>
   );
 }
 
@@ -136,7 +179,7 @@ export function DataTable({
             {headers.map((h, i) => (
               <th
                 key={h}
-                className={clsx(
+                className={cn(
                   "font-mono text-[10px] uppercase tracking-widest text-[var(--text-3)] font-normal py-2 px-2",
                   align[i] === "r" ? "text-right" : "text-left"
                 )}
@@ -152,7 +195,7 @@ export function DataTable({
               {row.map((cell, ci) => (
                 <td
                   key={ci}
-                  className={clsx(
+                  className={cn(
                     "font-mono text-xs py-2 px-2 max-w-[280px] truncate",
                     ci === 0 ? "text-[var(--text)]" : "text-[var(--text-2)]",
                     align[ci] === "r" && "text-right"
@@ -177,7 +220,7 @@ export function AlertsBanner({ alerts }: { alerts: Alert[] }) {
       {alerts.map((a, i) => (
         <div
           key={i}
-          className={clsx(
+          className={cn(
             "flex items-start gap-3 px-4 py-3 border font-mono text-xs",
             a.severity === "critical"
               ? "border-[var(--red)] bg-red-500/8 text-[var(--red)]"

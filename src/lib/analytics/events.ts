@@ -5,8 +5,14 @@
  * ingestion endpoint (src/app/api/track/route.ts) so the two can never drift.
  *
  * PRIVACY CONTRACT — enforced here, at the type level:
- * - No PDF content, no filenames, no PII. Only counts, sizes, durations,
- *   and (truncated) search query text.
+ * - No PDF file content or bytes ever leave the client.
+ * - PDF *metadata* IS collected (product decision, Analytics V2): filename,
+ *   size, page count, SHA-256 content hash, and embedded document info
+ *   (title/author/subject/keywords/creator/producer/dates) via `pdf_meta`
+ *   events, stored in the pdf_documents table.
+ * - The raw visitor IP is never stored; the server keeps only an
+ *   HMAC-SHA256 hash (see src/lib/analytics/ipHash.ts) plus Vercel geo
+ *   headers (country/region/city, coarse lat/lon).
  * - `aid` is the existing anonymous cookie ID (pdfsearch_session) — random
  *   UUID, never linked to identity.
  * - `sid` is a per-tab session ID used for session-level metrics.
@@ -20,6 +26,10 @@ export const EVENT_NAMES = [
   "pdf_upload",
   "pdf_url_added",
   "pdf_load_error",
+  // Per-document metadata (routed to the pdf_documents table at ingestion).
+  // Props: filename, sizeBytes, pageCount, sha256, title, author, subject,
+  // keywords, creator, producer, created, modified, source, status, processingMs.
+  "pdf_meta",
   "search",
   "search_error",
   "export_csv",
@@ -48,6 +58,10 @@ export const trackBatchSchema = z.object({
   sid: z.string().min(8).max(64),
   page: z.string().max(256).optional(),
   ref: z.string().max(512).optional(),
+  /** IANA timezone from Intl (better than the server's geo guess). */
+  tz: z.string().max(64).optional(),
+  /** BCP-47 language tag from navigator.language. */
+  lang: z.string().max(32).optional(),
   events: z.array(trackedEventSchema).min(1).max(25),
 });
 

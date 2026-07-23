@@ -44,12 +44,12 @@ const VITAL_BUDGETS: Record<string, { good: number; unit: "ms" | "score" }> = {
 
 interface VisitorsData {
   configured: boolean;
-  visitors: {
-    visitor: string;
+  rows: {
+    anonId: string;
     firstSeen: string;
     lastSeen: string;
     events: number;
-    sessions: number;
+    visits: number;
     device: string;
     browser: string;
     country: string;
@@ -59,19 +59,21 @@ interface VisitorsData {
 /** Ground truth for identity counting — one row per anon_id, straight from
  *  the events table, so dashboard numbers can be verified against raw data. */
 function RecentVisitorsPanel() {
-  const { data } = useAdminData<VisitorsData>("/api/admin/stats?section=visitors");
+  const { data } = useAdminData<VisitorsData>(
+    "/api/admin/stats?section=visitors&days=90&pageSize=25"
+  );
   if (!data?.configured) return null;
   return (
     <Panel title="Recent visitors (raw anon_ids — identity ground truth)">
       <DataTable
         headers={["Visitor", "First seen", "Last seen", "Events", "Sessions", "Device", "Browser", "Geo"]}
         align={["l", "l", "l", "r", "r", "l", "l", "l"]}
-        rows={(data.visitors ?? []).map((v) => [
-          `${v.visitor}…`,
+        rows={(data.rows ?? []).map((v) => [
+          `${v.anonId.slice(0, 8)}…`,
           v.firstSeen,
           v.lastSeen,
           v.events,
-          v.sessions,
+          v.visits,
           v.device,
           v.browser,
           v.country,

@@ -4,7 +4,6 @@
  * Handles:
  * - PDF text extraction via pdf.js
  * - Concurrent search across multiple PDFs
- * - Content-based deduplication (SHA-256)
  * - Memory management (ArrayBuffer cleanup)
  *
  * All processing is in-memory. Nothing is written to disk.
@@ -17,11 +16,7 @@ import type {
   SearchOptions,
   SearchProgress,
 } from "@/types";
-import {
-  escapeRegex,
-  createHighlightedHtml,
-  computeContentHash,
-} from "@/lib/security";
+import { escapeRegex, createHighlightedHtml } from "@/lib/security";
 
 // ─── pdf.js initialization ────────────────────────────────────────────────────
 
@@ -39,6 +34,60 @@ async function getPdfjsLib() {
   return lib;
 }
 
+// ─── Document metadata ────────────────────────────────────────────────────────
+
+/** Embedded document info extracted via pdf.js getMetadata(). */
+export type PdfDocMeta = Record<string, string>;
+
+/** Map from pdf.js info-dict keys to our telemetry prop names. */
+const INFO_KEYS: Record<string, string> = {
+  Title: "title",
+  Author: "author",
+  Subject: "subject",
+  Keywords: "keywords",
+  Creator: "creator",
+  Producer: "producer",
+  CreationDate: "created",
+  ModDate: "modified",
+};
+
+function readDocInfo(info: unknown): PdfDocMeta {
+  const meta: PdfDocMeta = {};
+  if (info && typeof info === "object") {
+    for (const [key, out] of Object.entries(INFO_KEYS)) {
+      const v = (info as Record<string, unknown>)[key];
+      if (typeof v === "string" && v.trim()) meta[out] = v.trim().slice(0, 256);
+    }
+  }
+  return meta;
+}
+
+/** SHA-256 of a PDF's bytes — content-level duplicate detection. */
+export async function sha256Hex(buffer: ArrayBuffer): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/**
+ * Extracts page count + embedded document info from a PDF.
+ * NOTE: pdf.js transfers the buffer to its worker (detaching it) — pass a
+ * buffer you don't need afterwards.
+ */
+export async function getPdfInfo(
+  buffer: ArrayBuffer
+): Promise<{ pageCount: number; meta: PdfDocMeta }> {
+  const pdfjs = await getPdfjsLib();
+  const pdf = await pdfjs.getDocument({ data: buffer }).promise;
+  try {
+    const { info } = await pdf.getMetadata().catch(() => ({ info: {} }));
+    return { pageCount: pdf.numPages, meta: readDocInfo(info) };
+  } finally {
+    await pdf.destroy().catch(() => {});
+  }
+}
+
 // ─── Text extraction ──────────────────────────────────────────────────────────
 
 interface ExtractedPage {
@@ -48,12 +97,22 @@ interface ExtractedPage {
 
 /**
  * Extracts text from a PDF ArrayBuffer, grouped by line.
- * Returns pages with their text lines for efficient search.
+ * Returns pages with their text lines for efficient search; optionally also
+ * reads the embedded document info while the document is open.
  */
-async function extractPdfText(buffer: ArrayBuffer): Promise<ExtractedPage[]> {
+async function extractPdfText(
+  buffer: ArrayBuffer,
+  collectMeta = false
+): Promise<{ pages: ExtractedPage[]; meta?: PdfDocMeta }> {
   const pdfjs = await getPdfjsLib();
   const pdf = await pdfjs.getDocument({ data: buffer }).promise;
   const pages: ExtractedPage[] = [];
+
+  let meta: PdfDocMeta | undefined;
+  if (collectMeta) {
+    const { info } = await pdf.getMetadata().catch(() => ({ info: {} }));
+    meta = readDocInfo(info);
+  }
 
   for (let p = 1; p <= pdf.numPages; p++) {
     const page = await pdf.getPage(p);
@@ -62,7 +121,7 @@ async function extractPdfText(buffer: ArrayBuffer): Promise<ExtractedPage[]> {
     pages.push({ pageNum: p, lines });
   }
 
-  return pages;
+  return { pages, meta };
 }
 
 /**
@@ -174,10 +233,24 @@ export async function loadPdfBuffer(file: PdfFile): Promise<ArrayBuffer> {
 
 // ─── Main search orchestrator ──────────────────────────────────────────────────
 
+/** Metadata collected for a file during a search pass (see onMeta). */
+export interface CollectedPdfMeta {
+  pageCount: number;
+  meta: PdfDocMeta;
+  sha256: string;
+  sizeBytes: number;
+  processingMs: number;
+}
+
 export interface SearchOrchestrationOptions extends SearchOptions {
   concurrency?: number;
   onProgress?: (progress: SearchProgress) => void;
   signal?: AbortSignal;
+  /** When both are set and collectMeta(file) is true, document metadata is
+   *  extracted during the search pass (the only time URL-sourced bytes exist
+   *  client-side) and reported via onMeta. */
+  collectMeta?: (file: PdfFile) => boolean;
+  onMeta?: (file: PdfFile, info: CollectedPdfMeta) => void;
 }
 
 /**
@@ -213,10 +286,30 @@ export async function searchAllPdfs(
         const startMs = performance.now();
 
         try {
+          const wantMeta = Boolean(
+            options.onMeta && options.collectMeta?.(file)
+          );
           const buffer = await loadPdfBuffer(file);
-          const pages = await extractPdfText(buffer);
+          const sizeBytes = buffer.byteLength;
+          // Hash before extraction — pdf.js transfers (detaches) the buffer.
+          const sha = wantMeta ? await sha256Hex(buffer) : null;
+          const { pages, meta } = await extractPdfText(buffer, wantMeta);
           const matches = searchPages(pages, query, options);
           const durationMs = Math.round(performance.now() - startMs);
+
+          if (wantMeta && sha) {
+            try {
+              options.onMeta!(file, {
+                pageCount: pages.length,
+                meta: meta ?? {},
+                sha256: sha,
+                sizeBytes,
+                processingMs: durationMs,
+              });
+            } catch {
+              // Metadata reporting must never break search.
+            }
+          }
 
           const result: SearchResult = {
             fileId: file.id,
@@ -266,16 +359,3 @@ export async function searchAllPdfs(
   return results;
 }
 
-// ─── Deduplication ────────────────────────────────────────────────────────────
-
-/**
- * Checks if a file's content already exists in the loaded set.
- * Uses SHA-256 content hash for reliable deduplication.
- */
-export async function isDuplicate(
-  buffer: ArrayBuffer,
-  existingHashes: Set<string>
-): Promise<{ duplicate: boolean; hash: string }> {
-  const hash = await computeContentHash(buffer);
-  return { duplicate: existingHashes.has(hash), hash };
-}

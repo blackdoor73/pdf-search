@@ -11,20 +11,26 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { v4 as uuidv4 } from "uuid";
 import type {
   PdfFile,
   SearchState,
   SearchOptions,
   SearchProgress,
 } from "@/types";
-import { searchAllPdfs } from "@/lib/pdf/engine";
-import { validatePdfFile, sanitizeFilename, MAX_PDF_COUNT } from "@/lib/security";
+import { searchAllPdfs, sha256Hex, getPdfInfo } from "@/lib/pdf/engine";
+import {
+  validatePdfFile,
+  sanitizeFilename,
+  MAX_PDF_COUNT,
+  MAX_SESSION_BYTES,
+} from "@/lib/security";
 import {
   getUserRepository,
   getOrCreateSessionId,
 } from "@/lib/storage/userHistory";
 import { track } from "@/lib/analytics/client";
+import { formatBytes } from "@/lib/utils";
+export { formatBytes };
 
 // ─── Initial state ─────────────────────────────────────────────────────────────
 
@@ -43,6 +49,51 @@ const DEFAULT_SEARCH_OPTIONS: SearchOptions = {
   showContext: true,
 };
 
+// ─── Per-document metadata telemetry ──────────────────────────────────────────
+
+/**
+ * Extracts document info (title/author/pages/…) for newly added local files
+ * and fires one pdf_meta event each. Fire-and-forget with capped concurrency
+ * so large batches never block the UI or spike memory.
+ */
+function reportFileMeta(added: PdfFile[], reported: Set<string>): void {
+  const queue = added.filter(
+    (f) => f.type === "file" && !reported.has(f.id)
+  );
+  for (const f of queue) reported.add(f.id);
+
+  const worker = async () => {
+    let f: PdfFile | undefined;
+    while ((f = queue.shift())) {
+      const start = performance.now();
+      const base = {
+        filename: f.name,
+        sizeBytes: f.byteSize,
+        sha256: f.contentHash ?? "",
+        source: "file",
+      };
+      try {
+        const buffer = await (f.source as File).arrayBuffer();
+        const { pageCount, meta } = await getPdfInfo(buffer);
+        track("pdf_meta", {
+          ...base,
+          ...meta,
+          pageCount,
+          status: "ok",
+          processingMs: Math.round(performance.now() - start),
+        });
+      } catch {
+        track("pdf_meta", {
+          ...base,
+          status: "error",
+          processingMs: Math.round(performance.now() - start),
+        });
+      }
+    }
+  };
+  void Promise.all([worker(), worker()]).catch(() => {});
+}
+
 // ─── Hook ──────────────────────────────────────────────────────────────────────
 
 export function useSearchEngine() {
@@ -56,6 +107,8 @@ export function useSearchEngine() {
 
   // Track content hashes for deduplication
   const contentHashes = useRef<Set<string>>(new Set());
+  // Files whose pdf_meta telemetry has already been reported
+  const reportedMetaIds = useRef<Set<string>>(new Set());
   // Cancellation controller
   const abortController = useRef<AbortController | null>(null);
 
@@ -74,6 +127,14 @@ export function useSearchEngine() {
         // Count limit
         if (files.length + toAdd.length >= MAX_PDF_COUNT) {
           skipped.push(`${file.name} (max ${MAX_PDF_COUNT} files reached)`);
+          continue;
+        }
+
+        // Session size cap
+        if (totalSizeBytes + addedSize + file.size > MAX_SESSION_BYTES) {
+          skipped.push(
+            `${file.name} (session limit ${formatBytes(MAX_SESSION_BYTES)} reached)`
+          );
           continue;
         }
 
@@ -97,13 +158,27 @@ export function useSearchEngine() {
           continue;
         }
 
+        // Content-level deduplication: same bytes under a different name
+        let contentHash: string | undefined;
+        try {
+          contentHash = await sha256Hex(await file.arrayBuffer());
+          if (contentHashes.current.has(contentHash)) {
+            skipped.push(`${file.name} (duplicate content)`);
+            continue;
+          }
+          contentHashes.current.add(contentHash);
+        } catch {
+          // Hashing is best-effort — never block adding the file.
+        }
+
         toAdd.push({
-          id: uuidv4(),
+          id: crypto.randomUUID(),
           name: validation.sanitizedName ?? sanitizeFilename(file.name),
           type: "file",
           source: file,
           size: formatBytes(file.size),
           byteSize: file.size,
+          contentHash,
           status: "ready",
         });
         addedSize += file.size;
@@ -113,8 +188,12 @@ export function useSearchEngine() {
         setFiles((prev) => [...prev, ...toAdd]);
         setTotalSizeBytes((prev) => prev + addedSize);
 
-        // Anonymous telemetry: counts and sizes only — never content or names
+        // Aggregate telemetry (counts/sizes) — kept for existing dashboards
         track("pdf_upload", { count: toAdd.length, totalBytes: addedSize });
+
+        // Per-document metadata telemetry (filename, doc info, hash — never
+        // file content). Runs in the background so it can't block the UI.
+        reportFileMeta(toAdd, reportedMetaIds.current);
 
         // Persist to history (filenames only, no content)
         const repo = getUserRepository();
@@ -131,7 +210,7 @@ export function useSearchEngine() {
 
       return { added: toAdd.length, skipped };
     },
-    [files]
+    [files, totalSizeBytes]
   );
 
   const addUrls = useCallback(
@@ -173,7 +252,7 @@ export function useSearchEngine() {
           sanitizeFilename(urlPath.split("/").pop() || "") || "document.pdf";
 
         toAdd.push({
-          id: uuidv4(),
+          id: crypto.randomUUID(),
           name: filename,
           type: "url",
           source: trimmed,
@@ -221,6 +300,7 @@ export function useSearchEngine() {
     setFiles([]);
     setTotalSizeBytes(0);
     contentHashes.current.clear();
+    reportedMetaIds.current.clear();
     setSearchState(INITIAL_SEARCH_STATE);
     setProgress(null);
   }, []);
@@ -257,6 +337,25 @@ export function useSearchEngine() {
           concurrency: 5,
           onProgress: setProgress,
           signal: abortController.current.signal,
+          // URL-sourced bytes only exist client-side during a search pass, so
+          // pdf_meta for URL files is reported here (once per file).
+          collectMeta: (f) =>
+            f.type === "url" && !reportedMetaIds.current.has(f.id),
+          onMeta: (f, info) => {
+            if (reportedMetaIds.current.has(f.id)) return;
+            reportedMetaIds.current.add(f.id);
+            contentHashes.current.add(info.sha256);
+            track("pdf_meta", {
+              filename: f.name,
+              sizeBytes: info.sizeBytes,
+              sha256: info.sha256,
+              source: "url",
+              ...info.meta,
+              pageCount: info.pageCount,
+              status: "ok",
+              processingMs: info.processingMs,
+            });
+          },
         });
 
         if (abortController.current.signal.aborted) return;
@@ -351,11 +450,3 @@ export function useSearchEngine() {
   };
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-export function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1048576).toFixed(1)} MB`;
-}

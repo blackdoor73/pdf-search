@@ -90,3 +90,11 @@ export function fmtPct(ratio: number | null | undefined): string {
   if (ratio == null || Number.isNaN(ratio)) return "—";
   return `${(ratio * 100).toFixed(1)}%`;
 }
+
+/** ISO-3166 alpha-2 country code → flag emoji (e.g. "US" → 🇺🇸). */
+export function fmtFlag(code: string): string {
+  if (!/^[A-Za-z]{2}$/.test(code)) return "";
+  return String.fromCodePoint(
+    ...[...code.toUpperCase()].map((c) => 0x1f1a5 + c.charCodeAt(0))
+  );
+}

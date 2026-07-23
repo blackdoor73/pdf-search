@@ -71,6 +71,8 @@ function flush(useBeacon = false): void {
     sid: ident.sid,
     page: location.pathname.slice(0, 256),
     ref: document.referrer.slice(0, 512) || undefined,
+    tz: (Intl.DateTimeFormat().resolvedOptions().timeZone ?? "").slice(0, 64) || undefined,
+    lang: (navigator.language ?? "").slice(0, 32) || undefined,
     events,
   });
 
