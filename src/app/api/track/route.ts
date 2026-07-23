@@ -27,6 +27,8 @@
 import { NextRequest } from "next/server";
 import { trackBatchSchema, MAX_QUERY_LEN } from "@/lib/analytics/events";
 import { isBotUserAgent } from "@/lib/analytics/bots";
+import { parseUa } from "@/lib/analytics/ua";
+import { hashIp } from "@/lib/analytics/ipHash";
 import { ADMIN_COOKIE, verifySessionToken } from "@/lib/admin/auth";
 import { ensureSchema, getSql, isDbConfigured } from "@/lib/db";
 
@@ -49,26 +51,28 @@ function rateLimited(ip: string): boolean {
   return entry.count > RATE_LIMIT_PER_MIN;
 }
 
-function parseUa(ua: string): { device: string; browser: string } {
-  const device = /iPad|Tablet/i.test(ua)
-    ? "tablet"
-    : /Mobi|Android|iPhone/i.test(ua)
-    ? "mobile"
-    : "desktop";
-  const browser = /Edg\//.test(ua)
-    ? "Edge"
-    : /OPR\/|Opera/.test(ua)
-    ? "Opera"
-    : /SamsungBrowser/.test(ua)
-    ? "Samsung Internet"
-    : /Firefox\//.test(ua)
-    ? "Firefox"
-    : /Chrome\//.test(ua)
-    ? "Chrome"
-    : /Safari\//.test(ua)
-    ? "Safari"
-    : "Other";
-  return { device, browser };
+/** Vercel geo headers + request-derived enrichment shared by both tables. */
+function readGeo(req: NextRequest) {
+  const dec = (v: string | null): string | null => {
+    if (!v) return null;
+    try {
+      return decodeURIComponent(v); // Vercel URI-encodes city names
+    } catch {
+      return v;
+    }
+  };
+  const flt = (v: string | null): number | null => {
+    const n = v ? parseFloat(v) : NaN;
+    return Number.isFinite(n) ? n : null;
+  };
+  return {
+    country: req.headers.get("x-vercel-ip-country"),
+    region: dec(req.headers.get("x-vercel-ip-country-region")),
+    city: dec(req.headers.get("x-vercel-ip-city")),
+    lat: flt(req.headers.get("x-vercel-ip-latitude")),
+    lon: flt(req.headers.get("x-vercel-ip-longitude")),
+    tzHeader: req.headers.get("x-vercel-ip-timezone"),
+  };
 }
 
 async function isAdminTraffic(req: NextRequest): Promise<boolean> {
@@ -107,8 +111,14 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return NO_CONTENT;
     const batch = parsed.data;
 
-    const country = req.headers.get("x-vercel-ip-country") ?? null;
-    const { device, browser } = parseUa(ua);
+    const geo = readGeo(req);
+    const ipHash = await hashIp(ip);
+    const tz = batch.tz ?? geo.tzHeader;
+    const lang =
+      batch.lang ??
+      req.headers.get("accept-language")?.split(",")[0]?.trim().slice(0, 32) ??
+      null;
+    const { device, browser, os } = parseUa(ua);
     const keepSearchTerms = process.env.TRACK_SEARCH_TERMS !== "false";
 
     const now = Date.now();
@@ -135,9 +145,13 @@ export async function POST(req: NextRequest) {
     await ensureSchema();
     const sql = getSql();
     await sql`
-      INSERT INTO events (event_id, ts, anon_id, session_id, event, page, referrer, country, device, browser, props)
+      INSERT INTO events (event_id, ts, anon_id, session_id, event, page, referrer,
+                          country, region, city, lat, lon,
+                          device, browser, os, lang, tz, ip_hash, props)
       SELECT event_id, ts, ${batch.aid}, ${batch.sid}, event, ${batch.page ?? null},
-             ${batch.ref ?? null}, ${country}, ${device}, ${browser}, props
+             ${batch.ref ?? null}, ${geo.country}, ${geo.region}, ${geo.city},
+             ${geo.lat}, ${geo.lon}, ${device}, ${browser}, ${os},
+             ${lang}, ${tz}, ${ipHash}, props
       FROM unnest(
         ${idArr}::text[],
         ${tsArr}::timestamptz[],

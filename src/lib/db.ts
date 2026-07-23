@@ -81,4 +81,56 @@ async function migrate(): Promise<void> {
     CREATE UNIQUE INDEX IF NOT EXISTS events_event_id_key
     ON events (event_id) WHERE event_id IS NOT NULL
   `;
+  // Analytics V2 enrichment: hashed visitor IP (never the raw IP), full
+  // Vercel geo, OS, language, timezone. Nullable so legacy rows stay valid.
+  await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS ip_hash TEXT`;
+  await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS region TEXT`;
+  await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS city TEXT`;
+  await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS lat REAL`;
+  await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS lon REAL`;
+  await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS os TEXT`;
+  await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS lang TEXT`;
+  await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS tz TEXT`;
+  await sql`
+    CREATE INDEX IF NOT EXISTS events_ip_hash_idx
+    ON events (ip_hash) WHERE ip_hash IS NOT NULL
+  `;
+
+  // Per-document metadata rows (client-extracted; never file content).
+  // Populated from pdf_meta telemetry events at ingestion.
+  await sql`
+    CREATE TABLE IF NOT EXISTS pdf_documents (
+      id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      event_id      TEXT,
+      ts            TIMESTAMPTZ NOT NULL DEFAULT now(),
+      anon_id       TEXT NOT NULL,
+      session_id    TEXT NOT NULL,
+      ip_hash       TEXT,
+      country       TEXT,
+      region        TEXT,
+      city          TEXT,
+      filename      TEXT NOT NULL,
+      size_bytes    BIGINT,
+      page_count    INT,
+      sha256        TEXT,
+      title         TEXT,
+      author        TEXT,
+      subject       TEXT,
+      keywords      TEXT,
+      creator       TEXT,
+      producer      TEXT,
+      pdf_created   TEXT,
+      pdf_modified  TEXT,
+      source        TEXT NOT NULL DEFAULT 'file',
+      status        TEXT NOT NULL DEFAULT 'ok',
+      processing_ms INT
+    )
+  `;
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS pdf_documents_event_id_key
+    ON pdf_documents (event_id) WHERE event_id IS NOT NULL
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS pdf_documents_ts_idx ON pdf_documents (ts DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS pdf_documents_sha_idx ON pdf_documents (sha256)`;
+  await sql`CREATE INDEX IF NOT EXISTS pdf_documents_fname_idx ON pdf_documents (lower(filename))`;
 }
