@@ -100,14 +100,57 @@ export function RangePicker({
 
 export function ExportButton({ report, days }: { report: string; days: number }) {
   return (
-    <a
-      href={`/api/admin/export?report=${report}&days=${days}`}
-      className="inline-flex items-center gap-1.5 font-mono text-[10px] text-[var(--text-3)] hover:text-[var(--accent)] transition-colors uppercase tracking-wider"
-      title="Download CSV"
-    >
-      <Download className="w-3 h-3" />
-      CSV
-    </a>
+    <span className="inline-flex items-center gap-3">
+      {(["csv", "json"] as const).map((format) => (
+        <a
+          key={format}
+          href={`/api/admin/export?report=${report}&days=${days}&format=${format}`}
+          className="inline-flex items-center gap-1.5 font-mono text-[10px] text-[var(--text-3)] hover:text-[var(--accent)] transition-colors uppercase tracking-wider"
+          title={`Download ${format.toUpperCase()} (CSV opens in Excel)`}
+        >
+          <Download className="w-3 h-3" />
+          {format}
+        </a>
+      ))}
+    </span>
+  );
+}
+
+export function Pager({
+  page,
+  pageSize,
+  total,
+  onPage,
+}: {
+  page: number;
+  pageSize: number;
+  total: number;
+  onPage: (p: number) => void;
+}) {
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  if (pages <= 1) return null;
+  return (
+    <div className="flex items-center justify-between pt-3 font-mono text-[11px] text-[var(--text-3)]">
+      <button
+        type="button"
+        disabled={page <= 1}
+        onClick={() => onPage(page - 1)}
+        className="px-3 py-1 border border-[var(--border)] disabled:opacity-40 hover:text-[var(--text)] transition-colors"
+      >
+        ← Prev
+      </button>
+      <span>
+        Page {page} of {pages} · {total.toLocaleString()} rows
+      </span>
+      <button
+        type="button"
+        disabled={page >= pages}
+        onClick={() => onPage(page + 1)}
+        className="px-3 py-1 border border-[var(--border)] disabled:opacity-40 hover:text-[var(--text)] transition-colors"
+      >
+        Next →
+      </button>
+    </div>
   );
 }
 

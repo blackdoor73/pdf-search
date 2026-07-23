@@ -5,18 +5,24 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Activity,
   BarChart3,
+  FileText,
   Gauge,
+  Globe,
   Lightbulb,
   LogOut,
   Package,
   Radio,
   TrendingUp,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/admin", label: "Overview", icon: Gauge },
   { href: "/admin/traffic", label: "Traffic", icon: TrendingUp },
+  { href: "/admin/visitors", label: "Visitors", icon: Users },
+  { href: "/admin/geo", label: "Geography", icon: Globe },
+  { href: "/admin/documents", label: "Documents", icon: FileText },
   { href: "/admin/product", label: "Product", icon: Package },
   { href: "/admin/system", label: "System", icon: Activity },
   { href: "/admin/insights", label: "Insights", icon: Lightbulb },
