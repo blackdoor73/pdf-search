@@ -3,6 +3,7 @@ import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
 import { Analytics } from "@/components/Analytics";
+import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { siteUrl } from "@/lib/seo/site";
 
 const plexMono = IBM_Plex_Mono({
@@ -182,7 +183,10 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          {children}
+          <FeedbackWidget />
+        </ToastProvider>
         <Analytics />
       </body>
     </html>

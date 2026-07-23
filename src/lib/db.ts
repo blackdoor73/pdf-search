@@ -133,4 +133,28 @@ async function migrate(): Promise<void> {
   await sql`CREATE INDEX IF NOT EXISTS pdf_documents_ts_idx ON pdf_documents (ts DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS pdf_documents_sha_idx ON pdf_documents (sha256)`;
   await sql`CREATE INDEX IF NOT EXISTS pdf_documents_fname_idx ON pdf_documents (lower(filename))`;
+
+  // In-app feedback. email is optional (anonymous feedback allowed); the
+  // raw IP is never stored, only its hash. status: 'new' | 'resolved'.
+  await sql`
+    CREATE TABLE IF NOT EXISTS feedback (
+      id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      ts         TIMESTAMPTZ NOT NULL DEFAULT now(),
+      category   TEXT NOT NULL,
+      message    TEXT NOT NULL,
+      email      TEXT,
+      page       TEXT,
+      anon_id    TEXT,
+      session_id TEXT,
+      ip_hash    TEXT,
+      country    TEXT,
+      browser    TEXT,
+      os         TEXT,
+      device     TEXT,
+      status     TEXT NOT NULL DEFAULT 'new',
+      admin_note TEXT
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS feedback_ts_idx ON feedback (ts DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS feedback_status_ts_idx ON feedback (status, ts DESC)`;
 }
