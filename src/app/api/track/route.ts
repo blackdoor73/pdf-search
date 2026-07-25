@@ -25,7 +25,7 @@
  */
 
 import { NextRequest } from "next/server";
-import { trackBatchSchema, MAX_QUERY_LEN } from "@/lib/analytics/events";
+import { parseBatchLenient, MAX_QUERY_LEN } from "@/lib/analytics/events";
 import { isBotUserAgent } from "@/lib/analytics/bots";
 import { parseUa } from "@/lib/analytics/ua";
 import { hashIp } from "@/lib/analytics/ipHash";
@@ -88,28 +88,50 @@ async function isAdminTraffic(req: NextRequest): Promise<boolean> {
 
 const NO_CONTENT = new Response(null, { status: 204 });
 
+/**
+ * Why events were not stored. The response is always 204 — callers learn
+ * nothing — but the *server* must not be silent: an unlogged endpoint makes
+ * a real ingestion outage indistinguishable from an idle site. Routine drops
+ * (bots, admin, rate limit) log only under TRACK_DEBUG; anything that
+ * signifies breakage always logs.
+ */
+function drop(reason: string, detail?: unknown): Response {
+  if (process.env.TRACK_DEBUG === "true") {
+    console.warn(`[track] dropped: ${reason}`, detail ?? "");
+  }
+  return NO_CONTENT;
+}
+
 export async function POST(req: NextRequest) {
   try {
-    if (!isDbConfigured()) return NO_CONTENT;
+    if (!isDbConfigured()) {
+      // Always logged: a production deploy without DATABASE_URL is an outage.
+      console.error("[track] DATABASE_URL is not configured — events discarded");
+      return NO_CONTENT;
+    }
 
     const ua = req.headers.get("user-agent") ?? "";
-    if (isBotUserAgent(ua)) return NO_CONTENT;
-    if (await isAdminTraffic(req)) return NO_CONTENT;
+    if (isBotUserAgent(ua)) return drop("bot user-agent", ua.slice(0, 80));
+    if (await isAdminTraffic(req)) return drop("admin traffic");
 
     const len = Number(req.headers.get("content-length") ?? 0);
-    if (len > MAX_BODY_BYTES) return NO_CONTENT;
+    if (len > MAX_BODY_BYTES) return drop("content-length over cap", len);
 
     const ip =
       req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-    if (rateLimited(ip)) return NO_CONTENT;
+    if (rateLimited(ip)) return drop("rate limited");
 
     // sendBeacon may deliver as text/plain — parse manually.
     const raw = await req.text();
-    if (raw.length > MAX_BODY_BYTES) return NO_CONTENT;
+    if (raw.length > MAX_BODY_BYTES) return drop("body over cap", raw.length);
 
-    const parsed = trackBatchSchema.safeParse(JSON.parse(raw));
-    if (!parsed.success) return NO_CONTENT;
-    const batch = parsed.data;
+    const result = parseBatchLenient(JSON.parse(raw));
+    if (!result) return drop("no valid events in batch", raw.slice(0, 300));
+    const batch = result.batch;
+    if (result.dropped.length > 0) {
+      // Always logged: malformed events mean the client and schema disagree.
+      console.warn("[track] skipped invalid events", result.dropped);
+    }
 
     const geo = readGeo(req);
     const ipHash = await hashIp(ip);
@@ -157,8 +179,13 @@ export async function POST(req: NextRequest) {
     await ensureSchema();
     const sql = getSql();
 
+    // The two inserts are independent: a pdf_documents failure must never
+    // cost us the event stream (or vice versa). Each reports its own error.
+    let failed = false;
+
     if (eventArr.length > 0) {
-      await sql`
+      try {
+        await sql`
         INSERT INTO events (event_id, ts, anon_id, session_id, event, page, referrer,
                             country, region, city, lat, lon,
                             device, browser, os, lang, tz, ip_hash, props)
@@ -174,6 +201,13 @@ export async function POST(req: NextRequest) {
         ) AS t(event_id, ts, event, props)
         ON CONFLICT (event_id) WHERE event_id IS NOT NULL DO NOTHING
       `;
+      } catch (err) {
+        failed = true;
+        console.error(
+          `[track] events insert failed (${eventArr.length} events)`,
+          err
+        );
+      }
     }
 
     if (docs.length > 0) {
@@ -204,7 +238,8 @@ export async function POST(req: NextRequest) {
         processing_ms: int(d.props.processingMs),
       }));
 
-      await sql`
+      try {
+        await sql`
         INSERT INTO pdf_documents (event_id, ts, anon_id, session_id, ip_hash,
                                    country, region, city,
                                    filename, size_bytes, page_count, sha256,
@@ -223,11 +258,27 @@ export async function POST(req: NextRequest) {
         )
         ON CONFLICT (event_id) WHERE event_id IS NOT NULL DO NOTHING
       `;
+      } catch (err) {
+        failed = true;
+        console.error(
+          `[track] pdf_documents insert failed (${docs.length} docs)`,
+          err
+        );
+      }
+    }
+
+    if (!failed && process.env.TRACK_DEBUG === "true") {
+      console.warn(
+        `[track] stored ${eventArr.length} events, ${docs.length} documents`
+      );
     }
 
     return NO_CONTENT;
-  } catch {
-    // Ingestion failures must never propagate to users.
+  } catch (err) {
+    // Failures must never propagate to users — but they must never be
+    // invisible to us either. This log is the only signal that ingestion
+    // is broken, since the response is a 204 no matter what.
+    console.error("[track] ingestion failed", err);
     return NO_CONTENT;
   }
 }
