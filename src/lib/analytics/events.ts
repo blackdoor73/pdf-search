@@ -68,5 +68,55 @@ export const trackBatchSchema = z.object({
 export type TrackedEvent = z.infer<typeof trackedEventSchema>;
 export type TrackBatch = z.infer<typeof trackBatchSchema>;
 
+/**
+ * Envelope-only schema: the batch metadata must be valid, but individual
+ * events are validated one-by-one by parseBatchLenient below.
+ */
+const trackBatchEnvelopeSchema = trackBatchSchema.extend({
+  events: z.array(z.unknown()).min(1).max(25),
+});
+
+export interface LenientParseResult {
+  batch: TrackBatch;
+  /** Events rejected by per-event validation (batch still ingests the rest). */
+  dropped: { index: number; reason: string }[];
+}
+
+/**
+ * Parse an ingestion payload, salvaging every valid event.
+ *
+ * The batch used to be validated all-or-nothing, so one malformed event —
+ * an over-long PDF metadata string, an id that isn't a UUID — silently
+ * discarded every other event flushed in the same window (page_view,
+ * search, pdf_meta, all of it). Now the envelope must be valid, and each
+ * event stands or falls on its own.
+ *
+ * Returns null only when the envelope itself is unusable.
+ */
+export function parseBatchLenient(input: unknown): LenientParseResult | null {
+  const envelope = trackBatchEnvelopeSchema.safeParse(input);
+  if (!envelope.success) return null;
+
+  const events: TrackedEvent[] = [];
+  const dropped: { index: number; reason: string }[] = [];
+
+  envelope.data.events.forEach((raw, index) => {
+    const parsed = trackedEventSchema.safeParse(raw);
+    if (parsed.success) {
+      events.push(parsed.data);
+    } else {
+      dropped.push({
+        index,
+        reason: parsed.error.issues
+          .map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`)
+          .join("; "),
+      });
+    }
+  });
+
+  if (events.length === 0) return null;
+  return { batch: { ...envelope.data, events }, dropped };
+}
+
 /** Max length stored for search query text. */
 export const MAX_QUERY_LEN = 120;

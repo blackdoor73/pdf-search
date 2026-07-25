@@ -67,7 +67,9 @@ function reportFileMeta(added: PdfFile[], reported: Set<string>): void {
     while ((f = queue.shift())) {
       const start = performance.now();
       const base = {
-        filename: f.name,
+        // Clamped to the 256-char prop limit the ingestion schema enforces —
+        // an over-long filename would otherwise fail validation server-side.
+        filename: f.name.slice(0, 256),
         sizeBytes: f.byteSize,
         sha256: f.contentHash ?? "",
         source: "file",
@@ -346,7 +348,7 @@ export function useSearchEngine() {
             reportedMetaIds.current.add(f.id);
             contentHashes.current.add(info.sha256);
             track("pdf_meta", {
-              filename: f.name,
+              filename: f.name.slice(0, 256),
               sizeBytes: info.sizeBytes,
               sha256: info.sha256,
               source: "url",

@@ -85,8 +85,10 @@ export async function POST(req: NextRequest) {
     });
 
     return OK;
-  } catch {
-    // Never surface internals to the client.
+  } catch (err) {
+    // Never surface internals to the client — but log them, or a broken
+    // feedback pipeline looks identical to nobody sending feedback.
+    console.error("[feedback] submission failed", err);
     return BAD;
   }
 }
