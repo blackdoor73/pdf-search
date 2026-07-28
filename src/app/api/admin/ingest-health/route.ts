@@ -93,6 +93,42 @@ export async function GET(req: NextRequest) {
     out.events24hByName = { error: describe(err) };
   }
 
+  // Per-event-name history: when each event type was last seen, and its
+  // volume before vs. after a given date. This is what distinguishes "a
+  // deploy broke this event" from "nobody happened to do that this week" —
+  // pass ?since=YYYY-MM-DD to set the split point (defaults to 2026-07-23,
+  // the day the SEO/feedback batch shipped).
+  try {
+    const sinceParam = req.nextUrl.searchParams.get("since");
+    const since = /^\d{4}-\d{2}-\d{2}$/.test(sinceParam ?? "")
+      ? (sinceParam as string)
+      : "2026-07-23";
+    const rows = (await sql.query(
+      `SELECT event,
+              max(ts) AS last_ts,
+              count(*) AS total,
+              count(*) FILTER (WHERE ts >= $1::date) AS since_split,
+              count(*) FILTER (WHERE ts <  $1::date) AS before_split
+       FROM events
+       GROUP BY event ORDER BY max(ts) DESC`,
+      [since]
+    )) as Record<string, unknown>[];
+    out.splitDate = since;
+    out.eventHistory = Object.fromEntries(
+      rows.map((r) => [
+        String(r.event),
+        {
+          lastTs: r.last_ts ? String(r.last_ts) : null,
+          total: Number(r.total ?? 0),
+          sinceSplit: Number(r.since_split ?? 0),
+          beforeSplit: Number(r.before_split ?? 0),
+        },
+      ])
+    );
+  } catch (err) {
+    out.eventHistory = { error: describe(err) };
+  }
+
   if (req.nextUrl.searchParams.get("canary") === "1") {
     const canaryId = `canary-${crypto.randomUUID()}`;
     try {
