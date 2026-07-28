@@ -94,3 +94,29 @@ export function computeConcurrency(
 export function formatLimit(bytes: number): string {
   return `${Math.round(bytes / MB)}MB`;
 }
+
+export type SizeVerdict = "ok" | "warn" | "reject";
+
+/**
+ * Three-band size decision.
+ *
+ * Exceeding the device tier is a warning, not a wall: it is the visitor's
+ * browser and their call to make. Only the absolute ceiling is enforced,
+ * because past that point the tab is likely to die whatever they choose.
+ */
+export function classifyFileSize(
+  size: number,
+  deviceLimit: number,
+  ceiling: number = LIMIT_CEILING
+): SizeVerdict {
+  if (size > ceiling) return "reject";
+  if (size > deviceLimit) return "warn";
+  return "ok";
+}
+
+/** Warning shown when a file is over the device tier but under the ceiling. */
+export function oversizeWarning(filename: string, size: number): string {
+  return `${filename} is ${formatLimit(
+    size
+  )} — larger than this device comfortably handles. It may be slow or crash the tab.`;
+}

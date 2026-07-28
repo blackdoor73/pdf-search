@@ -26,6 +26,8 @@ export const EVENT_NAMES = [
   "pdf_upload",
   "pdf_url_added",
   "pdf_load_error",
+  /** File exceeded the device's comfortable size but was loaded anyway. */
+  "pdf_oversize_warning",
   // Per-document metadata (routed to the pdf_documents table at ingestion).
   // Props: filename, sizeBytes, pageCount, sha256, title, author, subject,
   // keywords, creator, producer, created, modified, source, status, processingMs.

@@ -157,14 +157,4 @@ async function migrate(): Promise<void> {
   `;
   await sql`CREATE INDEX IF NOT EXISTS feedback_ts_idx ON feedback (ts DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS feedback_status_ts_idx ON feedback (status, ts DESC)`;
-
-  // Admin-editable runtime settings (currently the geo access rules).
-  // Generic key/value so future settings reuse it without a migration.
-  await sql`
-    CREATE TABLE IF NOT EXISTS app_settings (
-      key        TEXT PRIMARY KEY,
-      value      JSONB NOT NULL,
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    )
-  `;
 }

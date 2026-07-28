@@ -107,6 +107,11 @@ export default function HomePage() {
       } else if (result.skipped.length > 0) {
         toast.warning(result.skipped[0]);
       }
+      // Loaded, but big enough to be worth flagging — shown after the success
+      // toast so the file still visibly arrived.
+      if (result.warnings.length > 0) {
+        toast.warning(result.warnings[0]);
+      }
       return result;
     },
     [addFiles, toast]

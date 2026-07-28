@@ -30,9 +30,12 @@ import {
 } from "@/lib/storage/userHistory";
 import { track } from "@/lib/analytics/client";
 import {
+  classifyFileSize,
   computeConcurrency,
   computeFileLimit,
+  oversizeWarning,
   readDeviceCapability,
+  LIMIT_CEILING,
 } from "@/lib/upload/limits";
 import { formatBytes } from "@/lib/utils";
 export { formatBytes };
@@ -124,14 +127,16 @@ export function useSearchEngine() {
   const addFiles = useCallback(
     async (
       fileList: FileList | File[]
-    ): Promise<{ added: number; skipped: string[] }> => {
+    ): Promise<{ added: number; skipped: string[]; warnings: string[] }> => {
       const incoming = Array.from(fileList);
       const skipped: string[] = [];
+      const warnings: string[] = [];
       const toAdd: PdfFile[] = [];
       let addedSize = 0;
 
-      // Per-file ceiling for *this* device — parsing happens in the visitor's
+      // Comfortable size for *this* device — parsing happens in the visitor's
       // browser, so a phone and a 32GB desktop cannot share one flat cap.
+      // Exceeding it warns; only LIMIT_CEILING actually refuses the file.
       const deviceLimit = computeFileLimit(readDeviceCapability());
 
       for (const file of incoming) {
@@ -149,19 +154,27 @@ export function useSearchEngine() {
           continue;
         }
 
-        // Validate
-        const validation = await validatePdfFile(file, deviceLimit);
+        // Validate against the absolute ceiling only — the device tier is a
+        // warning, not a wall.
+        const validation = await validatePdfFile(file, LIMIT_CEILING);
         if (!validation.valid) {
           skipped.push(validation.error ?? `${file.name} (validation failed)`);
           track("pdf_load_error", {
             code: validation.error ?? "validation_failed",
-            // Distinguishes "too big for this phone" from "too big, period" —
-            // the first is a device story, the second a product limit.
-            oversizeForDevice: validation.oversizeForDevice ?? false,
+            sizeBytes: file.size,
+            limitBytes: LIMIT_CEILING,
+          });
+          continue;
+        }
+
+        // Over this device's comfortable size but under the ceiling: load it
+        // and tell them what to expect. It is their browser and their call.
+        if (classifyFileSize(file.size, deviceLimit) === "warn") {
+          warnings.push(oversizeWarning(file.name, file.size));
+          track("pdf_oversize_warning", {
             sizeBytes: file.size,
             limitBytes: deviceLimit,
           });
-          continue;
         }
 
         // Deduplication by name+size (quick check before hash)
@@ -226,7 +239,7 @@ export function useSearchEngine() {
         }
       }
 
-      return { added: toAdd.length, skipped };
+      return { added: toAdd.length, skipped, warnings };
     },
     [files, totalSizeBytes]
   );
