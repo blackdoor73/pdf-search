@@ -433,7 +433,13 @@ export function useSearchEngine() {
         setProgress(null);
       }
     },
-    [files, searchOptions, searchState.status, searchState.startedAt]
+    [
+      files,
+      searchOptions,
+      searchState.status,
+      searchState.startedAt,
+      totalSizeBytes,
+    ]
   );
 
   const cancelSearch = useCallback(() => {

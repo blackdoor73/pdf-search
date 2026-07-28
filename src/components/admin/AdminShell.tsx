@@ -13,6 +13,7 @@ import {
   MessageSquare,
   Package,
   Radio,
+  Settings,
   TrendingUp,
   Users,
 } from "lucide-react";
@@ -29,6 +30,7 @@ const NAV = [
   { href: "/admin/system", label: "System", icon: Activity },
   { href: "/admin/insights", label: "Insights", icon: Lightbulb },
   { href: "/admin/command", label: "Command Center", icon: Radio },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
