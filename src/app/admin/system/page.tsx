@@ -31,7 +31,13 @@ interface SystemData {
   webVitals: { name: string; p75: number; samples: number }[];
   errorCodes: { code: string; count: number }[];
   storage: { dbBytes: number; eventsBytes: number; eventCount: number };
-  recentErrors: { at: string; event: string; detail: string; page: string }[];
+  recentErrors: {
+    at: string;
+    event: string;
+    detail: string;
+    page: string;
+    source: string;
+  }[];
 }
 
 const VITAL_BUDGETS: Record<string, { good: number; unit: "ms" | "score" }> = {
@@ -213,8 +219,15 @@ export default function AdminSystemPage() {
         </Panel>
         <Panel title="Recent errors">
           <DataTable
-            headers={["Time", "Type", "Detail"]}
-            rows={data.recentErrors.map((e) => [e.at, e.event, e.detail || e.page])}
+            headers={["Time", "Type", "Detail", "Source"]}
+            rows={data.recentErrors.map((e) => [
+              e.at,
+              e.event,
+              e.detail || e.page,
+              // Where it came from — without this a row like "Script error."
+              // is undiagnosable.
+              e.source || e.page || "—",
+            ])}
           />
         </Panel>
       </div>

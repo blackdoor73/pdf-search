@@ -15,6 +15,7 @@ import Script from "next/script";
 import { usePathname } from "next/navigation";
 import { useReportWebVitals } from "next/web-vitals";
 import { track } from "@/lib/analytics/client";
+import { isNoiseError } from "@/lib/analytics/errorFilter";
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 const CLARITY_ID = process.env.NEXT_PUBLIC_CLARITY_ID;
@@ -43,14 +44,24 @@ export function Analytics() {
 
   useEffect(() => {
     const onError = (e: ErrorEvent) => {
+      const message = String(e.message ?? "unknown");
+      const filename = e.filename ?? "";
+      // Browser-extension crashes and stripped cross-origin errors are not
+      // our bugs and can never be diagnosed — don't spend the error panel on
+      // them. See lib/analytics/errorFilter.ts.
+      if (isNoiseError({ message, filename })) return;
       track("client_error", {
-        message: String(e.message ?? "unknown").slice(0, 200),
-        source: `${e.filename ?? ""}:${e.lineno ?? 0}`.slice(0, 200),
+        message: message.slice(0, 200),
+        source: `${filename}:${e.lineno ?? 0}`.slice(0, 200),
       });
     };
     const onRejection = (e: PromiseRejectionEvent) => {
+      const message = String(e.reason?.message ?? e.reason ?? "unhandled rejection");
+      // Rejections carry no filename; injected wallet providers are the
+      // dominant source here and are matched on the message alone.
+      if (isNoiseError({ message })) return;
       track("client_error", {
-        message: String(e.reason?.message ?? e.reason ?? "unhandled rejection").slice(0, 200),
+        message: message.slice(0, 200),
         source: "unhandledrejection",
       });
     };
@@ -68,9 +79,12 @@ export function Analytics() {
     <>
       {GA_ID && (
         <>
+          {/* crossOrigin lets the browser report real messages for errors
+              thrown inside this script instead of an opaque "Script error." */}
           <Script
             src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
             strategy="afterInteractive"
+            crossOrigin="anonymous"
           />
           <Script id="ga4-init" strategy="afterInteractive">
             {`window.dataLayer = window.dataLayer || [];
@@ -84,7 +98,7 @@ gtag('config', '${GA_ID}', { anonymize_ip: true });`}
         <Script id="clarity-init" strategy="afterInteractive">
           {`(function(c,l,a,r,i,t,y){
 c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+t=l.createElement(r);t.async=1;t.crossOrigin="anonymous";t.src="https://www.clarity.ms/tag/"+i;
 y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
 })(window, document, "clarity", "script", "${CLARITY_ID}");`}
         </Script>

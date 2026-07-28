@@ -313,7 +313,8 @@ export async function getSystem() {
 
   const recentErrors = (await sql`
     SELECT to_char(ts, 'YYYY-MM-DD HH24:MI') AS at, event,
-      coalesce(props->>'message', props->>'code', '') AS detail, page
+      coalesce(props->>'message', props->>'code', '') AS detail, page,
+      coalesce(props->>'source', '') AS source
     FROM events
     WHERE event IN ('client_error', 'search_error', 'pdf_load_error')
     ORDER BY ts DESC LIMIT 15
@@ -344,6 +345,7 @@ export async function getSystem() {
       event: String(r.event),
       detail: String(r.detail ?? ""),
       page: String(r.page ?? ""),
+      source: String(r.source ?? ""),
     })),
   };
 }

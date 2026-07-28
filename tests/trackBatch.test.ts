@@ -1,6 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseBatchLenient } from "../src/lib/analytics/events.ts";
+import {
+  parseBatchLenient,
+  trackedEventSchema,
+} from "../src/lib/analytics/events.ts";
 
 const AID = "155917ac-a50e-4ef0-b5fa-8e49401d3e72";
 const SID = "514e76fd-80bc-4826-ab14-011ae8e52625";
@@ -65,6 +68,52 @@ test("a malformed envelope is rejected outright", () => {
   assert.equal(parseBatchLenient({ aid: "short", sid: SID, events: [validEvent()] }), null);
   assert.equal(parseBatchLenient({ aid: AID, sid: SID, events: [] }), null);
   assert.equal(parseBatchLenient(null), null);
+});
+
+// Regression guard: these are the exact payload shapes useSearchEngine emits
+// for a real search. If a prop ever stops satisfying the schema, the event is
+// silently dropped at ingestion — which is how `search` and `pdf_meta` went
+// missing from the dashboard once already.
+test("a real search payload passes validation", () => {
+  const parsed = trackedEventSchema.safeParse({
+    id: crypto.randomUUID(),
+    e: "search",
+    ts: Date.now(),
+    props: { q: "dummy", matches: 1, files: 1, pages: 1, durationMs: 640 },
+  });
+  assert.ok(parsed.success, JSON.stringify(parsed.error?.issues));
+});
+
+test("a real pdf_meta payload passes validation", () => {
+  const parsed = trackedEventSchema.safeParse({
+    id: crypto.randomUUID(),
+    e: "pdf_meta",
+    ts: Date.now(),
+    props: {
+      filename: "dummy.pdf",
+      sizeBytes: 13264,
+      sha256: "a".repeat(64),
+      source: "url",
+      title: "Dummy PDF file",
+      producer: "Skia/PDF",
+      pageCount: 1,
+      status: "ok",
+      processingMs: 640,
+    },
+  });
+  assert.ok(parsed.success, JSON.stringify(parsed.error?.issues));
+});
+
+test("pdf_meta with a 256-char metadata string is still accepted", () => {
+  // readDocInfo() clamps embedded PDF metadata to exactly 256 chars, which
+  // must sit on the allowed side of the schema's max(256) boundary.
+  const parsed = trackedEventSchema.safeParse({
+    id: crypto.randomUUID(),
+    e: "pdf_meta",
+    ts: Date.now(),
+    props: { filename: "x.pdf", keywords: "k".repeat(256) },
+  });
+  assert.ok(parsed.success, JSON.stringify(parsed.error?.issues));
 });
 
 test("batch metadata survives per-event filtering", () => {

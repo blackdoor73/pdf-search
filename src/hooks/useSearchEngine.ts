@@ -29,6 +29,11 @@ import {
   getOrCreateSessionId,
 } from "@/lib/storage/userHistory";
 import { track } from "@/lib/analytics/client";
+import {
+  computeConcurrency,
+  computeFileLimit,
+  readDeviceCapability,
+} from "@/lib/upload/limits";
 import { formatBytes } from "@/lib/utils";
 export { formatBytes };
 
@@ -125,6 +130,10 @@ export function useSearchEngine() {
       const toAdd: PdfFile[] = [];
       let addedSize = 0;
 
+      // Per-file ceiling for *this* device — parsing happens in the visitor's
+      // browser, so a phone and a 32GB desktop cannot share one flat cap.
+      const deviceLimit = computeFileLimit(readDeviceCapability());
+
       for (const file of incoming) {
         // Count limit
         if (files.length + toAdd.length >= MAX_PDF_COUNT) {
@@ -141,10 +150,17 @@ export function useSearchEngine() {
         }
 
         // Validate
-        const validation = await validatePdfFile(file);
+        const validation = await validatePdfFile(file, deviceLimit);
         if (!validation.valid) {
-          skipped.push(`${file.name} (${validation.error})`);
-          track("pdf_load_error", { code: validation.error ?? "validation_failed" });
+          skipped.push(validation.error ?? `${file.name} (validation failed)`);
+          track("pdf_load_error", {
+            code: validation.error ?? "validation_failed",
+            // Distinguishes "too big for this phone" from "too big, period" —
+            // the first is a device story, the second a product limit.
+            oversizeForDevice: validation.oversizeForDevice ?? false,
+            sizeBytes: file.size,
+            limitBytes: deviceLimit,
+          });
           continue;
         }
 
@@ -336,7 +352,10 @@ export function useSearchEngine() {
       try {
         const results = await searchAllPdfs(files, safeQuery, {
           ...searchOptions,
-          concurrency: 5,
+          // Peak memory during a search is roughly concurrency × file size, so
+          // a fixed 5 meant five large PDFs decoded at once — the real cause of
+          // out-of-memory tab crashes, more than any single big file.
+          concurrency: computeConcurrency(totalSizeBytes, files.length),
           onProgress: setProgress,
           signal: abortController.current.signal,
           // URL-sourced bytes only exist client-side during a search pass, so

@@ -1,7 +1,13 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { Upload, FileText } from "lucide-react";
+import {
+  computeFileLimit,
+  formatLimit,
+  readDeviceCapability,
+  LIMIT_DEFAULT,
+} from "@/lib/upload/limits";
 import { cn } from "@/lib/utils";
 
 interface UploadZoneProps {
@@ -13,6 +19,13 @@ export function UploadZone({ onFiles, disabled }: UploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  // Resolved after mount: the capability APIs don't exist during SSR, and
+  // rendering a device-specific number on the server would hydrate wrong.
+  const [limit, setLimit] = useState(LIMIT_DEFAULT);
+
+  useEffect(() => {
+    setLimit(computeFileLimit(readDeviceCapability()));
+  }, []);
 
   const processFiles = useCallback(
     async (files: File[]) => {
@@ -115,7 +128,7 @@ export function UploadZone({ onFiles, disabled }: UploadZoneProps) {
           <p className="font-mono text-xs text-[var(--text-3)] mt-1">
             or{" "}
             <span className="text-[var(--accent)]">click to browse</span>
-            {" · "}Multiple files supported{" · "}Max 50MB each
+            {" · "}Multiple files supported{" · "}Max {formatLimit(limit)} each
           </p>
         </div>
       </div>
