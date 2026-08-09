@@ -20,13 +20,16 @@ const schema = z.object({
   website: z.string().max(0).optional().or(z.literal("")), // honeypot
 });
 
-const OK = NextResponse.json({ ok: true });
-const BAD = NextResponse.json({ ok: false }, { status: 400 });
+// Built per call, not shared: a NextResponse body is a single-use stream, so a
+// module-scope instance is drained by the first request that returns it and
+// every later use sends an empty body (see the note in ../feedback/route.ts).
+const OK = () => NextResponse.json({ ok: true });
+const BAD = () => NextResponse.json({ ok: false }, { status: 400 });
 
 export async function POST(req: NextRequest) {
   try {
     const ua = req.headers.get("user-agent") ?? "";
-    if (isBotUserAgent(ua)) return OK;
+    if (isBotUserAgent(ua)) return OK();
 
     const ip =
       req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
@@ -35,8 +38,8 @@ export async function POST(req: NextRequest) {
     }
 
     const parsed = schema.safeParse(await req.json().catch(() => null));
-    if (!parsed.success) return BAD;
-    if (parsed.data.website) return OK; // honeypot filled → silently accept
+    if (!parsed.success) return BAD();
+    if (parsed.data.website) return OK(); // honeypot filled → silently accept
 
     const apiKey = process.env.RESEND_API_KEY;
     const audienceId = process.env.RESEND_AUDIENCE_ID;
@@ -62,8 +65,8 @@ export async function POST(req: NextRequest) {
       console.error("[newsletter] resend error:", res.status);
       return NextResponse.json({ ok: false }, { status: 502 });
     }
-    return OK;
+    return OK();
   } catch {
-    return BAD;
+    return BAD();
   }
 }

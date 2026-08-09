@@ -17,6 +17,7 @@ import {
   StatCard,
 } from "@/components/admin/ui";
 import { fmtNum, useAdminData } from "@/components/admin/useAdminData";
+import { diagnosticsSchema, formatDiagnostics } from "@/lib/feedback/diagnostics";
 import {
   FEEDBACK_CATEGORIES,
   FEEDBACK_CATEGORY_LABELS,
@@ -35,6 +36,25 @@ interface FeedbackRow {
   device: string;
   status: string;
   adminNote: string;
+  /** Search diagnostics for "issue" reports; null on every other row. */
+  diagnostics: unknown;
+}
+
+/**
+ * Renders a stored diagnostics blob.
+ *
+ * Validated rather than cast: these rows are arbitrary JSONB, and a malformed
+ * one must not throw and blank the entire inbox. Falls back to raw JSON so a
+ * row that fails validation is still readable.
+ */
+function renderDiagnostics(raw: unknown): string {
+  const parsed = diagnosticsSchema.safeParse(raw);
+  if (parsed.success) return formatDiagnostics(parsed.data);
+  try {
+    return JSON.stringify(raw, null, 2);
+  } catch {
+    return "(unreadable diagnostics)";
+  }
 }
 
 interface FeedbackData {
@@ -196,6 +216,16 @@ export default function AdminFeedbackPage() {
                   <p className="font-sans text-sm text-[var(--text)] whitespace-pre-wrap leading-relaxed">
                     {f.message}
                   </p>
+                  {f.diagnostics ? (
+                    <details className="mt-3 border border-[var(--border)]">
+                      <summary className="cursor-pointer px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-[var(--accent)] select-none">
+                        Search diagnostics
+                      </summary>
+                      <pre className="px-3 pb-3 pt-1 font-mono text-[10px] text-[var(--text-3)] leading-relaxed whitespace-pre-wrap overflow-x-auto">
+                        {renderDiagnostics(f.diagnostics)}
+                      </pre>
+                    </details>
+                  ) : null}
                   <div className="flex items-center gap-3 flex-wrap mt-2 font-mono text-[10px] text-[var(--text-3)]">
                     {f.email && <span className="text-[var(--text-2)]">{f.email}</span>}
                     {f.page && <span>{f.page}</span>}

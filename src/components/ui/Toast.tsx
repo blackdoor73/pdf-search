@@ -112,7 +112,10 @@ function ToastContainer({
     <div
       role="region"
       aria-label="Notifications"
-      className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 w-80 max-w-[calc(100vw-2rem)]"
+      // bottom-28, not bottom-4: the feedback + issue buttons anchor at the
+      // bottom-right corner, and toasts at the same anchor rendered directly on
+      // top of them (toasts are z-[100], the buttons z-[80]).
+      className="fixed bottom-28 right-4 z-[100] flex flex-col gap-2 w-80 max-w-[calc(100vw-2rem)]"
     >
       {toasts.map((t) => (
         <div
