@@ -142,6 +142,23 @@ export const OCR_MAX_PAGES_PER_SEARCH = 100;
  */
 export const OCR_SILENT_PAGE_MAX = 5;
 
+/**
+ * Pages to return to the search-wide allowance after a run.
+ *
+ * The allowance is claimed at decision time, because two files whose decisions
+ * land before either finishes must not each believe the whole allowance is
+ * theirs. But a run that fails, is cancelled, or is truncated spends less than
+ * it claimed, and without a refund that difference is lost for the rest of the
+ * search — later scanned files then get `reason: "budget"` and silently return
+ * zero matches.
+ *
+ * Clamped at 0 so a bookkeeping slip can never *grow* the allowance.
+ */
+export function refundBudget(claimed: number, spent: number): number {
+  if (!Number.isFinite(claimed) || !Number.isFinite(spent)) return 0;
+  return Math.max(0, claimed - Math.max(0, spent));
+}
+
 /** Minimum reported RAM (GB) to attempt OCR. */
 export const OCR_MIN_DEVICE_MEMORY = 4;
 

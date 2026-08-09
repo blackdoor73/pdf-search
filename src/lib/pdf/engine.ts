@@ -23,6 +23,7 @@ import {
   decideOcr,
   ocrSupported,
   pageIsTextless,
+  refundBudget,
   OCR_MAX_PAGES_PER_SEARCH,
   type OcrDecision,
 } from "./ocrLimits";
@@ -457,6 +458,20 @@ export async function searchAllPdfs(
             } finally {
               if (!decision.silent) options.onOcrProgress?.(null);
             }
+          }
+
+          // Return the pages claimed but not spent. Placed outside the block
+          // above so it covers every path out of a claim — including the case
+          // where `decision.run` was true but the guard declined (no bytes, or
+          // an abort landed in between), which reaches no `finally` at all.
+          // Without this, one failed scan permanently consumes up to
+          // OCR_MAX_PAGES of the search allowance and later scanned files get
+          // `reason: "budget"` and silently return zero matches.
+          if (decision.run) {
+            ocrBudget.left += refundBudget(
+              decision.pages.length,
+              ocrPages?.length ?? 0
+            );
           }
 
           const matches = searchPages(pages, query, options);

@@ -7,6 +7,7 @@ import {
   computeRenderScale,
   ocrSkipMessage,
   ocrTruncatedNote,
+  refundBudget,
   PAGE_TEXT_CHAR_MIN,
   OCR_MAX_PAGES,
   OCR_MAX_PAGES_PER_SEARCH,
@@ -212,6 +213,71 @@ test("decideOcr: default budget is the search-wide cap", () => {
   // Per-file cap still binds first, since 50 < 100.
   assert.equal(d.pages.length, OCR_MAX_PAGES);
   assert.ok(OCR_MAX_PAGES <= OCR_MAX_PAGES_PER_SEARCH);
+});
+
+// ─── refundBudget ─────────────────────────────────────────────────────────────
+
+test("refundBudget: a fully spent claim refunds nothing", () => {
+  assert.equal(refundBudget(50, 50), 0);
+});
+
+test("refundBudget: an unspent claim is returned in full", () => {
+  // The bug this exists to prevent: a scan that failed before reading a single
+  // page used to keep all 50 claimed pages, starving every later scanned file.
+  assert.equal(refundBudget(50, 0), 50);
+});
+
+test("refundBudget: a partial run refunds only the remainder", () => {
+  assert.equal(refundBudget(50, 30), 20);
+  assert.equal(refundBudget(12, 11), 1);
+});
+
+test("refundBudget: never grows the allowance", () => {
+  // Over-spend or nonsense input must not hand back budget that was never
+  // claimed, or the search-wide cap stops being a cap.
+  assert.equal(refundBudget(10, 20), 0);
+  assert.equal(refundBudget(0, 5), 0);
+  assert.equal(refundBudget(10, -5), 10);
+  assert.equal(refundBudget(NaN, 5), 0);
+  assert.equal(refundBudget(10, NaN), 0);
+  assert.equal(refundBudget(Infinity, 0), 0);
+});
+
+test("refundBudget: a batch of failing scans cannot exhaust the allowance", () => {
+  // Models the real regression across a multi-file search: three scanned files
+  // each claim the per-file cap and each fail outright. Before the refund the
+  // allowance hit 0 and the third file was refused with reason "budget".
+  let left = OCR_MAX_PAGES_PER_SEARCH;
+  for (let i = 0; i < 3; i++) {
+    const d = decideOcr("scanned", textless(OCR_MAX_PAGES), { deviceMemory: 8 }, true, left);
+    assert.equal(d.run, true, `file ${i + 1} should still be allowed to OCR`);
+    if (!d.run) return;
+    left -= d.pages.length;          // claim
+    left += refundBudget(d.pages.length, 0); // run failed, spent nothing
+  }
+  assert.equal(left, OCR_MAX_PAGES_PER_SEARCH);
+});
+
+test("refundBudget: successful runs still consume the allowance", () => {
+  // The refund must not defeat the cap: real work spends real budget.
+  let left = OCR_MAX_PAGES_PER_SEARCH;
+  const d1 = decideOcr("scanned", textless(50), { deviceMemory: 8 }, true, left);
+  if (!d1.run) throw new Error("expected run");
+  left -= d1.pages.length;
+  left += refundBudget(d1.pages.length, d1.pages.length); // all 50 read
+  assert.equal(left, OCR_MAX_PAGES_PER_SEARCH - 50);
+
+  const d2 = decideOcr("scanned", textless(50), { deviceMemory: 8 }, true, left);
+  if (!d2.run) throw new Error("expected run");
+  left -= d2.pages.length;
+  left += refundBudget(d2.pages.length, d2.pages.length);
+  assert.equal(left, 0);
+
+  // Third file is correctly refused — the cap still holds.
+  assert.deepEqual(decideOcr("scanned", textless(10), { deviceMemory: 8 }, true, left), {
+    run: false,
+    reason: "budget",
+  });
 });
 
 // ─── computeRenderScale ───────────────────────────────────────────────────────
