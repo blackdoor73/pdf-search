@@ -34,6 +34,18 @@ export const EVENT_NAMES = [
   "pdf_meta",
   "search",
   "search_error",
+  // ── Scanned PDFs / OCR ────────────────────────────────────────────────────
+  /** A PDF with a missing or artifact-only text layer was found. Fires even
+   *  when OCR does not run — the only way to size how common scans are.
+   *  Props: verdict, pageCount, textlessPages, willOcr, skipReason. */
+  "ocr_detected",
+  /** OCR was possible in principle but declined. Props: reason, pages. */
+  "ocr_skipped",
+  /** An OCR pass completed. Props: pagesOcrd, pagesRequested, truncated,
+   *  ms, confidence, matchesFound. */
+  "ocr_run",
+  /** OCR failed. Props: stage, message, pageNum, pagesDone. */
+  "ocr_error",
   "export_csv",
   "client_error",
   "web_vital",

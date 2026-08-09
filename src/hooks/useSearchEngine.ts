@@ -16,6 +16,7 @@ import type {
   SearchState,
   SearchOptions,
   SearchProgress,
+  OcrProgress,
 } from "@/types";
 import { searchAllPdfs, sha256Hex, getPdfInfo } from "@/lib/pdf/engine";
 import {
@@ -37,6 +38,7 @@ import {
   readDeviceCapability,
   LIMIT_CEILING,
 } from "@/lib/upload/limits";
+import { releaseOcrIfLive } from "@/lib/pdf/ocrTeardown";
 import { formatBytes } from "@/lib/utils";
 export { formatBytes };
 
@@ -111,6 +113,8 @@ export function useSearchEngine() {
   const [searchState, setSearchState] =
     useState<SearchState>(INITIAL_SEARCH_STATE);
   const [progress, setProgress] = useState<SearchProgress | null>(null);
+  /** Parallel to `progress` — page-granular, only for large OCR runs. */
+  const [ocrProgress, setOcrProgress] = useState<OcrProgress | null>(null);
   const [searchOptions, setSearchOptions] =
     useState<SearchOptions>(DEFAULT_SEARCH_OPTIONS);
   const [totalSizeBytes, setTotalSizeBytes] = useState(0);
@@ -334,6 +338,10 @@ export function useSearchEngine() {
     reportedMetaIds.current.clear();
     setSearchState(INITIAL_SEARCH_STATE);
     setProgress(null);
+    setOcrProgress(null);
+    // Release the OCR worker and the tesseract engine's ~50MB with it. No-op,
+    // and no chunk fetched, when OCR never ran.
+    releaseOcrIfLive();
   }, []);
 
   // ── Search ───────────────────────────────────────────────────────────────
@@ -346,6 +354,7 @@ export function useSearchEngine() {
       // Cancel any in-flight search
       abortController.current?.abort();
       abortController.current = new AbortController();
+
 
       const { sanitizeSearchQuery } = await import("@/lib/security");
       const safeQuery = sanitizeSearchQuery(query);
@@ -365,6 +374,27 @@ export function useSearchEngine() {
       try {
         const results = await searchAllPdfs(files, safeQuery, {
           ...searchOptions,
+          ocr: true,
+          onOcrProgress: setOcrProgress,
+          // Fires for every file whose text layer is missing or artifact-only,
+          // whether or not OCR then runs — that is the only way to size how
+          // common scanned PDFs actually are among real visitors.
+          onTextLayer: (_f, info) => {
+            if (info.verdict === "text") return;
+            track("ocr_detected", {
+              verdict: info.verdict,
+              pageCount: info.totalPages,
+              textlessPages: info.textlessPages.length,
+              willOcr: info.decision.run,
+              skipReason: info.decision.run ? "" : info.decision.reason,
+            });
+            if (!info.decision.run && info.decision.reason !== "no-need") {
+              track("ocr_skipped", {
+                reason: info.decision.reason,
+                pages: info.textlessPages.length,
+              });
+            }
+          },
           // Peak memory during a search is roughly concurrency × file size, so
           // a fixed 5 meant five large PDFs decoded at once — the real cause of
           // out-of-memory tab crashes, more than any single big file.
@@ -416,13 +446,34 @@ export function useSearchEngine() {
           completedAt: Date.now(),
         });
 
+        const ocrFiles = results.filter((r) => r.ocrPages?.length);
         track("search", {
           q: safeQuery,
           matches: totalMatches,
           files: results.length,
           pages: results.reduce((sum, r) => sum + (r.totalPages || 0), 0),
           durationMs: Date.now() - (searchState.startedAt ?? Date.now()),
+          ocrFiles: ocrFiles.length,
+          ocrPages: ocrFiles.reduce((n, r) => n + (r.ocrPages?.length ?? 0), 0),
         });
+
+        for (const r of ocrFiles) {
+          track("ocr_run", {
+            pagesOcrd: r.ocrPages?.length ?? 0,
+            pagesRequested: r.textlessPages?.length ?? 0,
+            ms: r.ocrMs ?? 0,
+            confidence: Math.round(r.ocrConfidence ?? 0),
+            matchesFound: r.matches.length,
+          });
+        }
+        for (const r of results) {
+          if (r.ocrSkipped === "failed") {
+            track("ocr_error", {
+              stage: "recognize",
+              pagesDone: r.ocrPages?.length ?? 0,
+            });
+          }
+        }
 
         // Persist search to history
         const repo = getUserRepository();
@@ -444,6 +495,7 @@ export function useSearchEngine() {
         }));
       } finally {
         setProgress(null);
+        setOcrProgress(null);
       }
     },
     [
@@ -459,11 +511,16 @@ export function useSearchEngine() {
     abortController.current?.abort();
     setSearchState((prev) => ({ ...prev, status: "idle" }));
     setProgress(null);
+    setOcrProgress(null);
+    // A user-initiated cancel should stop OCR immediately rather than waiting
+    // for the worker to finish the page it is on.
+    releaseOcrIfLive();
   }, []);
 
   const clearResults = useCallback(() => {
     setSearchState(INITIAL_SEARCH_STATE);
     setProgress(null);
+    setOcrProgress(null);
   }, []);
 
   return {
@@ -471,6 +528,7 @@ export function useSearchEngine() {
     files,
     searchState,
     progress,
+    ocrProgress,
     searchOptions,
     totalSizeBytes,
     // File actions
