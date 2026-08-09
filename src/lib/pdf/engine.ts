@@ -413,6 +413,7 @@ export async function searchAllPdfs(
           let ocrSkipped: SearchResult["ocrSkipped"];
           let ocrConfidence: number | undefined;
           let ocrMs: number | undefined;
+          let ocrPerf: SearchResult["ocrPerf"];
 
           if (!decision.run && verdict !== "text" && decision.reason !== "no-need") {
             ocrSkipped = decision.reason;
@@ -448,6 +449,14 @@ export async function searchAllPdfs(
               }
               ocrPages = [...outcome.pageLines.keys()].sort((a, b) => a - b);
               ocrMs = outcome.ms;
+              ocrPerf = {
+                queueWaitMs: outcome.queueWaitMs,
+                renderMs: outcome.stageMs?.render,
+                encodeMs: outcome.stageMs?.encode,
+                recognizeMs: outcome.stageMs?.recognize,
+                warmMs: outcome.stageMs?.warm,
+                bytesPerPage: outcome.bytesPerPage,
+              };
               if (outcome.confidence !== null) ocrConfidence = outcome.confidence;
               if (outcome.failed) {
                 ocrSkipped =
@@ -506,6 +515,7 @@ export async function searchAllPdfs(
             ocrSkipped,
             ocrConfidence,
             ocrMs,
+            ocrPerf,
             // First page with any text, for the OPT-IN issue-report excerpt.
             // Page 1 of a scan is often a blank cover, hence "first with text".
             sampleText: pages

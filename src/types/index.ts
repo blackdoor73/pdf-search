@@ -75,6 +75,21 @@ export interface SearchResult {
   /** Wall-clock ms spent on OCR for this file. */
   ocrMs?: number;
   /**
+   * Per-stage OCR cost, for diagnosing where the time actually goes.
+   *
+   * `queueWaitMs` is the one that was previously invisible: `ocrMs` starts when
+   * execution starts, so time spent waiting behind another file's OCR never
+   * appeared anywhere.
+   */
+  ocrPerf?: {
+    queueWaitMs?: number;
+    renderMs?: number;
+    encodeMs?: number;
+    recognizeMs?: number;
+    warmMs?: number;
+    bytesPerPage?: number;
+  };
+  /**
    * Short excerpt of extracted text (first page that has any), kept in memory
    * for the opt-in issue-report diagnostics. Never sent anywhere unless the
    * visitor explicitly includes it in a report.

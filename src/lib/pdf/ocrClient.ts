@@ -76,7 +76,15 @@ export function disposeOcr(): void {
  * additive to the text-layer result and must not fail the file.
  */
 export function runOcrJob(opts: OcrJobOptions): Promise<OcrOutcome> {
-  return enqueueOcr(() => execute(opts));
+  // Timed HERE, before the queue, not inside execute(): everything OCR reported
+  // until now started its clock after the queue released it, so time spent
+  // waiting behind another file was invisible in telemetry.
+  const enqueuedAt = performance.now();
+  return enqueueOcr(async () => {
+    const queueWaitMs = Math.round(performance.now() - enqueuedAt);
+    const outcome = await execute(opts);
+    return { ...outcome, queueWaitMs };
+  });
 }
 
 function execute({
@@ -89,6 +97,9 @@ function execute({
   const pageLines = new Map<number, string[]>();
   const confidences: number[] = [];
   const started = Date.now();
+  const stage = { render: 0, encode: 0, recognize: 0, warm: 0 };
+  let totalBytes = 0;
+  let timedPages = 0;
 
   return new Promise<OcrOutcome>((resolve) => {
     const w = getWorker();
@@ -101,6 +112,11 @@ function execute({
         ? confidences.reduce((a, b) => a + b, 0) / confidences.length
         : null,
       failed,
+      // Overwritten by runOcrJob, which owns the pre-queue timestamp.
+      queueWaitMs: 0,
+      stageMs: timedPages > 0 ? { ...stage } : undefined,
+      bytesPerPage:
+        timedPages > 0 ? Math.round(totalBytes / timedPages) : undefined,
     });
 
     const cleanup = () => {
@@ -125,6 +141,13 @@ function execute({
         case "page":
           pageLines.set(m.pageNum, m.lines);
           confidences.push(m.confidence);
+          if (m.timings) {
+            stage.render += m.timings.renderMs;
+            stage.encode += m.timings.encodeMs;
+            stage.recognize += m.timings.recognizeMs;
+            totalBytes += m.timings.bytes;
+            timedPages++;
+          }
           onProgress?.({
             pagesDone: m.index,
             pagesTotal: m.total,
@@ -132,6 +155,7 @@ function execute({
           });
           break;
         case "done":
+          stage.warm = m.warmMs ?? 0;
           finish();
           break;
         case "error":

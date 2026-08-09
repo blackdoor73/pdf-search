@@ -115,6 +115,7 @@ function toLines(text: string): string[] {
 async function run(jobId: string, buffer: ArrayBuffer, pages: number[]) {
   const started = Date.now();
   let pagesOcrd = 0;
+  let warmMs = 0;
 
   const fail = (
     message: string,
@@ -131,7 +132,11 @@ async function run(jobId: string, buffer: ArrayBuffer, pages: number[]) {
   try {
     let engine: TesseractWorker;
     try {
+      // Zero when the engine is already warm — which is the point of caching it
+      // across jobs, and worth being able to confirm from the numbers.
+      const warmStart = performance.now();
       engine = await getEngine();
+      warmMs = Math.round(performance.now() - warmStart);
     } catch (err) {
       fail(err instanceof Error ? err.message : String(err), "init");
       return;
@@ -177,6 +182,7 @@ async function run(jobId: string, buffer: ArrayBuffer, pages: number[]) {
         c2d.fillStyle = "#ffffff";
         c2d.fillRect(0, 0, w, h);
 
+        const renderStart = performance.now();
         const task = page.render({
           canvasContext: c2d as unknown as CanvasRenderingContext2D,
           viewport,
@@ -188,11 +194,17 @@ async function run(jobId: string, buffer: ArrayBuffer, pages: number[]) {
         } finally {
           task.cancel();
         }
+        const renderMs = performance.now() - renderStart;
 
+        const encodeStart = performance.now();
         const blob = await canvas.convertToBlob({ type: "image/png" });
+        const encodeMs = performance.now() - encodeStart;
         if (cancelled.has(jobId)) return;
 
+        const recognizeStart = performance.now();
         const { data } = await engine.recognize(blob);
+        const recognizeMs = performance.now() - recognizeStart;
+
         pagesOcrd++;
         post({
           type: "page",
@@ -202,6 +214,12 @@ async function run(jobId: string, buffer: ArrayBuffer, pages: number[]) {
           total: pages.length,
           lines: toLines(data.text ?? ""),
           confidence: typeof data.confidence === "number" ? data.confidence : 0,
+          timings: {
+            renderMs: Math.round(renderMs),
+            encodeMs: Math.round(encodeMs),
+            recognizeMs: Math.round(recognizeMs),
+            bytes: blob.size,
+          },
         });
       } catch (err) {
         // Report and stop, but keep every page already streamed: a failure on
@@ -219,7 +237,7 @@ async function run(jobId: string, buffer: ArrayBuffer, pages: number[]) {
       }
     }
 
-    post({ type: "done", jobId, pagesOcrd, ms: Date.now() - started });
+    post({ type: "done", jobId, pagesOcrd, ms: Date.now() - started, warmMs });
   } finally {
     if (canvas) {
       // Detach the backing store now rather than waiting for GC.

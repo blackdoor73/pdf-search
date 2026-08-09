@@ -42,6 +42,22 @@ export interface OcrWarmingMessage {
   jobId: string;
 }
 
+/**
+ * Per-page cost breakdown.
+ *
+ * The three stages are the only levers available: rasterizing with pdf.js,
+ * encoding the bitmap, and tesseract recognition. Which of them dominates
+ * decides whether pipelining or a cheaper codec is worth building at all — a
+ * question that cannot be answered by reading the code.
+ */
+export interface OcrPageTimings {
+  renderMs: number;
+  encodeMs: number;
+  recognizeMs: number;
+  /** Encoded bytes handed to tesseract — the codec's real cost. */
+  bytes: number;
+}
+
 /** One per OCR'd page, streamed so partial results survive a later failure. */
 export interface OcrPageMessage {
   type: "page";
@@ -53,6 +69,7 @@ export interface OcrPageMessage {
   lines: string[];
   /** Tesseract's mean confidence, 0-100. */
   confidence: number;
+  timings?: OcrPageTimings;
 }
 
 export interface OcrDoneMessage {
@@ -61,6 +78,8 @@ export interface OcrDoneMessage {
   pagesOcrd: number;
   /** Wall-clock ms for the whole job, including engine warm-up. */
   ms: number;
+  /** Engine warm-up, paid once per cold engine and zero when already warm. */
+  warmMs?: number;
 }
 
 export interface OcrErrorMessage {
@@ -89,4 +108,16 @@ export interface OcrOutcome {
   confidence: number | null;
   /** Set when the job ended early; the pages above are still usable. */
   failed?: { message: string; stage: OcrErrorMessage["stage"] };
+  /**
+   * Time spent waiting for the OCR queue before any work began.
+   *
+   * Measured separately from `ms` because `ms` starts when execution starts, so
+   * queue wait was invisible — which is why a batch of scanned files felt slow
+   * without anything in telemetry showing it.
+   */
+  queueWaitMs: number;
+  /** Summed per-stage cost across the pages this job read. */
+  stageMs?: { render: number; encode: number; recognize: number; warm: number };
+  /** Mean encoded bytes per page. */
+  bytesPerPage?: number;
 }

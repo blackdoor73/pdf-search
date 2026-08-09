@@ -464,6 +464,14 @@ export function useSearchEngine() {
             ms: r.ocrMs ?? 0,
             confidence: Math.round(r.ocrConfidence ?? 0),
             matchesFound: r.matches.length,
+            // Per-stage split, so field data can tell us where the time goes
+            // rather than relying on one developer's laptop.
+            queueWaitMs: r.ocrPerf?.queueWaitMs ?? 0,
+            renderMs: r.ocrPerf?.renderMs ?? 0,
+            encodeMs: r.ocrPerf?.encodeMs ?? 0,
+            recognizeMs: r.ocrPerf?.recognizeMs ?? 0,
+            warmMs: r.ocrPerf?.warmMs ?? 0,
+            bytesPerPage: r.ocrPerf?.bytesPerPage ?? 0,
           });
         }
         for (const r of results) {
