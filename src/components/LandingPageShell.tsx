@@ -206,10 +206,17 @@ export function LandingPageShell({
           </h2>
           <div className="space-y-3">
             {faqItems.map((faq) => (
-              <details key={faq.question} className="card p-4">
+              <details key={faq.question} className="card p-4 group">
                 <summary className="font-mono text-sm font-semibold text-[var(--text)] cursor-pointer list-none flex items-start justify-between gap-3">
                   <span>{faq.question}</span>
-                  <span className="text-[var(--accent)] shrink-0 mt-0.5 text-base leading-none select-none">+</span>
+                  {/* Rotating 45° turns the + into a ×, so the affordance
+                      reflects open state. One element, so it can't desync. */}
+                  <span
+                    aria-hidden="true"
+                    className="text-[var(--accent)] shrink-0 mt-0.5 text-base leading-none select-none motion-safe:transition-transform motion-safe:duration-200 group-open:rotate-45"
+                  >
+                    +
+                  </span>
                 </summary>
                 <p className="font-sans text-xs text-[var(--text-2)] leading-relaxed mt-3">
                   {faq.answer}

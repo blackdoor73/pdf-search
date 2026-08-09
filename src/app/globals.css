@@ -189,3 +189,9 @@ mark {
   50%       { opacity: 0.4; }
 }
 .animate-scan { animation: scanPulse 1.5s ease-in-out infinite; }
+
+/* ─── Disclosure widgets ───────────────────────────────────────────────────── */
+/* FAQ summaries carry `list-none`, which suppresses the marker in modern
+   Safari — this is the belt-and-braces rule for older WebKit, which ignores
+   list-style on summary and would render a triangle beside our own glyph. */
+summary::-webkit-details-marker { display: none; }

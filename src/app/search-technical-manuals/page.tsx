@@ -19,7 +19,7 @@ const pageFaqSchema = faqSchema([
     { question: "Can I search several manuals at once?", answer: "Yes. Load multiple manuals \u2014 up to 200 files \u2014 and query across all of them, so a lookup can span an entire equipment or product line." },
     { question: "Does it match codes and part numbers exactly?", answer: "Yes. Case-sensitive and whole-word search match an identifier like E-42 or a part number precisely, without catching similar strings." },
     { question: "Are proprietary service manuals kept private?", answer: "Yes. Manuals are parsed in your browser and never uploaded, so proprietary service documentation stays in-house \u2014 and it works on locked-down field laptops." },
-    { question: "Can I search a scanned manual?", answer: "Only if it has an OCR text layer. A scanned manual is an image until OCR is run \u2014 test by searching a code you can see printed on the page." },
+    { question: "Can I search a scanned manual?", answer: "Yes. A scanned manual with no text layer is read with OCR in your browser \u2014 nothing is uploaded. Verify any part code you find against the page, since OCR can misread characters on a faint scan." },
 ]);
 
 const pageBreadcrumb = breadcrumbSchema([
@@ -53,7 +53,7 @@ export default function SearchTechnicalManualsPage() {
           <div className="font-sans text-sm text-[var(--text-2)] leading-relaxed space-y-4 max-w-3xl">
             <p>A product manual is a reference document, not a book you read front to back. When a machine throws error E-42 or you need the torque spec for a specific bolt, you want that page now — not a scroll through 400 pages of a PDF viewer. The built-in find box gets you there eventually, but only in one manual at a time and with no overview.</p>
             <p>Load the manuals and search the code or term directly. Whole-word, case-sensitive matching means E-42 matches the code and not “page 42,” and you can keep several manuals open at once so a lookup spans the whole equipment set. Results come back with page numbers so you land on the procedure immediately. The exact-match modes are the same ones <Link href="/pdf-search-for-engineers" className="text-[var(--accent)] hover:underline">engineers use for datasheets</Link>.</p>
-            <p>Because everything runs in your browser with nothing uploaded, this works on a locked-down field laptop and keeps proprietary service manuals in-house. Any text-based manual works; a scanned manual needs an OCR text layer before its codes are searchable.</p>
+            <p>Because everything runs in your browser with nothing uploaded, this works on a locked-down field laptop and keeps proprietary service manuals in-house. Any text-based manual works, and a scanned manual is read with OCR in the browser — though part codes found that way are worth double-checking against the page.</p>
           </div>
         </section>
       }
@@ -94,7 +94,7 @@ export default function SearchTechnicalManualsPage() {
         },
         {
           question: "Can I search a scanned manual?",
-          answer: "Only if it has an OCR text layer. A scanned manual is an image until OCR is run \u2014 test by searching a code you can see printed on the page.",
+          answer: "Yes. A scanned manual with no text layer is read with OCR in your browser \u2014 nothing is uploaded. Verify any part code you find against the page, since OCR can misread characters on a faint scan.",
         },
       ]}
       relatedTools={[

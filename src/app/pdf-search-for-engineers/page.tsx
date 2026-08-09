@@ -19,7 +19,7 @@ const pageFaqSchema = faqSchema([
     { question: "Can I search across many datasheets at once?", answer: "Yes. Load up to 200 datasheets, specs, and standards together and run a single query across all of them, with results grouped by document." },
     { question: "Is case-sensitive search supported?", answer: "Yes. Case sensitivity is a toggle, which matters for identifiers and register names where casing is significant." },
     { question: "Are proprietary specs kept confidential?", answer: "Yes. All parsing happens in your browser; documents are never uploaded, so internal specifications and design files stay on your device." },
-    { question: "Can I search a scanned standard?", answer: "Only if it has an OCR text layer. Older scanned standards may be image-only \u2014 load one and search for a visible word to check before relying on it." },
+    { question: "Can I search a scanned standard?", answer: "Yes. If a scanned standard has no text layer, PDFSearch reads its pages with OCR in your browser \u2014 nothing is uploaded. Recognition isn't perfect on faint or skewed scans, so matches from OCR are badged with a confidence figure. OCR needs a desktop browser." },
 ]);
 
 const pageBreadcrumb = breadcrumbSchema([
@@ -94,7 +94,7 @@ export default function PdfSearchForEngineersPage() {
         },
         {
           question: "Can I search a scanned standard?",
-          answer: "Only if it has an OCR text layer. Older scanned standards may be image-only \u2014 load one and search for a visible word to check before relying on it.",
+          answer: "Yes. If a scanned standard has no text layer, PDFSearch reads its pages with OCR in your browser \u2014 nothing is uploaded. Recognition isn't perfect on faint or skewed scans, so matches from OCR are badged with a confidence figure. OCR needs a desktop browser.",
         },
       ]}
       relatedTools={[

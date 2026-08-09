@@ -58,7 +58,7 @@ export default function Post() {
 
       <H2>Two things worth knowing</H2>
       <p>
-        First, it is genuinely free with no student-email wall, and because parsing happens in your browser, your notes and readings never leave your laptop — it even works on a locked-down school Chromebook. Second, a photographed handout or a pure scan has no searchable text until OCR is run on it; if a file returns nothing for a word you can see, <Link href="/search-scanned-pdf" className="text-[var(--accent)] hover:underline">that is the scanned-PDF problem</Link>, not a bug.
+        First, it is genuinely free with no student-email wall, and because parsing happens in your browser, your notes and readings never leave your laptop — it even works on a locked-down school Chromebook. Second, a photographed handout or a pure scan has no text layer at all, so it is read with OCR in your browser instead \u2014 <Link href="/search-scanned-pdf" className="text-[var(--accent)] hover:underline">here is how that works</Link>, including why it needs a desktop and how accurate to expect it to be.
       </p>
     </BlogPost>
   );

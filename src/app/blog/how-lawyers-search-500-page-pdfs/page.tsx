@@ -62,7 +62,7 @@ export default function Post() {
 
       <H2>The one real limitation: scanned exhibits</H2>
       <p>
-        Discovery is full of scans, and a scanned page is an image until optical character recognition (OCR) adds a text layer. If an exhibit returns no matches for a word you can plainly see on the page, it is image-only and needs OCR first. <Link href="/search-scanned-pdf" className="text-[var(--accent)] hover:underline">Here is how to test for a text layer</Link> and what to do about it. Native-text PDFs — most modern filings and contracts — search immediately.
+        Discovery is full of scans, and a scanned page is an image until optical character recognition (OCR) adds a text layer. PDFSearch detects image-only pages and reads them with OCR in the browser, so a raw scan is searchable without preparation — <Link href="/search-scanned-pdf" className="text-[var(--accent)] hover:underline">here is how that works</Link>, including its limits. Verify anything load-bearing against the page, since recognition is not perfect. Native-text PDFs — most modern filings and contracts — search immediately.
       </p>
 
       <H2>The workflow in four steps</H2>

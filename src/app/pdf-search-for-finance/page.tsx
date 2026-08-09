@@ -19,7 +19,7 @@ const pageFaqSchema = faqSchema([
     { question: "Can I match an exact figure or defined term?", answer: "Yes. Whole-word and case-sensitive search let you match a specific line item or a defined term like \u201cAdjusted EBITDA\u201d precisely, without partial or unrelated matches." },
     { question: "Are deal documents kept confidential?", answer: "Yes. Documents are parsed inside your browser and never uploaded, so confidential deal materials and drafts stay entirely on your device." },
     { question: "How large a document can it handle?", answer: "Each PDF can be up to 50 MB \u2014 comfortably larger than a typical 300-page annual report \u2014 and long filings search in seconds." },
-    { question: "Can I search scanned filings?", answer: "Scanned documents need an OCR text layer. Most modern filings are native-text and fully searchable; for an older scanned filing, test by searching a word you can see on the page." },
+    { question: "Can I search scanned filings?", answer: "Yes. Most modern filings are native-text and search instantly. An older scanned filing with no text layer is read with OCR in your browser — nothing is uploaded. OCR matches are badged, since recognition can garble a figure on a poor scan." },
 ]);
 
 const pageBreadcrumb = breadcrumbSchema([
@@ -94,7 +94,7 @@ export default function PdfSearchForFinancePage() {
         },
         {
           question: "Can I search scanned filings?",
-          answer: "Scanned documents need an OCR text layer. Most modern filings are native-text and fully searchable; for an older scanned filing, test by searching a word you can see on the page.",
+          answer: "Yes. Most modern filings are native-text and search instantly. An older scanned filing with no text layer is read with OCR in your browser — nothing is uploaded. OCR matches are badged, since recognition can garble a figure on a poor scan.",
         },
       ]}
       relatedTools={[

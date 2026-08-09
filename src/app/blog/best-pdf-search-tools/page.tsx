@@ -54,7 +54,7 @@ const tools = [
     ],
     cons: [
       "Browser memory limits large collections",
-      "Requires text-layer PDFs (no OCR)",
+      "OCR is desktop-only and capped per search",
     ],
     bestFor: "Multi-document search, research, legal review, compliance",
     cost: "Free",
@@ -255,7 +255,7 @@ export default function BestPdfSearchToolsPost() {
               For most people who need to search PDF files — especially multiple documents — <strong className="text-[var(--text)]">PDFSearch is the best free option</strong> in 2025. It is the only tool that combines multi-file search, URL support, privacy (no server uploads), and export functionality at no cost.
             </p>
             <p>
-              If you regularly work with scanned documents that need OCR, Adobe Acrobat is worth evaluating for its more comprehensive feature set. But for text-layer PDFs, PDFSearch covers the vast majority of use cases.
+              For very large scanned archives — hundreds of image-only pages at a time — Adobe Acrobat is worth evaluating, since its OCR runs without the per-search caps that keep a browser tab responsive. For text-layer PDFs and everyday scans, PDFSearch covers the vast majority of use cases.
             </p>
 
             <div className="card p-6 mt-8 text-center">

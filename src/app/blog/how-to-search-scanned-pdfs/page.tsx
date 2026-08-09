@@ -6,12 +6,12 @@ import { absUrl } from "@/lib/seo/site";
 export const metadata: Metadata = {
   title: "How to Search Scanned PDFs (and When You Simply Can't)",
   description:
-    "Why some scanned PDFs are searchable and others aren't, the 10-second text-layer test, what OCR actually does, and a practical pipeline for making image-only scans searchable.",
+    "Why some scanned PDFs are searchable and others aren't, the 10-second text-layer test, what OCR actually does, and how image-only scans are read automatically in your browser.",
   alternates: { canonical: absUrl("/blog/how-to-search-scanned-pdfs") },
   openGraph: {
     title: "How to Search Scanned PDFs (and When You Simply Can't)",
     description:
-      "The text-layer test, what OCR does, and how to make image-only scans searchable.",
+      "The text-layer test, what OCR does, and how image-only scans get read automatically.",
     url: absUrl("/blog/how-to-search-scanned-pdfs"),
   },
 };
@@ -51,20 +51,26 @@ export default function Post() {
 
       <H2>What OCR does — and its limits</H2>
       <p>
-        Optical character recognition (OCR) looks at the image, recognizes the shapes as letters, and writes an invisible text layer behind the picture. After OCR, the file looks the same but is now searchable. Most scanner apps, many PDF editors, and various free tools can add OCR.
+        Optical character recognition (OCR) looks at the image, recognizes the shapes as letters, and turns them into real text. Applied to a PDF, it writes an invisible text layer behind the picture: the file looks the same but becomes searchable.
       </p>
       <p>
-        Be aware of the trade-offs: OCR accuracy drops on faint scans, unusual fonts, handwriting (often not recognized at all), and complex tables. The searchable text it produces can contain small errors, so an exact-string search may occasionally miss a garbled word. It is very good, not perfect.
+        Be aware of the trade-offs: OCR accuracy drops on faint scans, unusual fonts, handwriting (often not recognized at all), and complex tables. The text it produces can contain small errors, so an exact-string search may occasionally miss a garbled word. It is very good, not perfect.
       </p>
 
-      <H2>A practical pipeline</H2>
+      <H2>You no longer have to run OCR yourself</H2>
       <p>
-        Test first — if the file already has a text layer, you are done; search it like any other PDF. If it is image-only, run OCR (your scanner software, a PDF editor, or a free OCR tool), then re-test. Once a real text layer exists, everything normal applies: <Link href="/how-to-search-pdf" className="text-[var(--accent)] hover:underline">the basics</Link>, searching across <Link href="/search-multiple-pdfs" className="text-[var(--accent)] hover:underline">many files at once</Link>, exact matching, all of it.
+        Historically this was a two-step chore: run the file through OCR software, then search the result. <Link href="/search-scanned-pdf" className="text-[var(--accent)] hover:underline">PDFSearch now does the OCR for you</Link>, in the browser. It checks each page for a usable text layer while it searches and reads the pages that don&apos;t have one — so an image-only scan is searchable on the first try, with no preparation.
+      </p>
+      <p>
+        Two details worth knowing. It runs locally, using WebAssembly, so the PDF&apos;s bytes never leave your device. And it is bounded on purpose: short documents are read silently, longer ones show progress you can cancel, and there are per-file and per-search page caps so a big batch can&apos;t lock up the tab. On phones and tablets OCR is skipped entirely — the engine needs more memory than a phone can safely spare — and you get told that instead of an empty result.
+      </p>
+      <p>
+        Because recognition is imperfect, matches that came from OCR are labelled as such, with a confidence figure per file. That way you know whether to trust a hit or go look at the page yourself.
       </p>
 
       <H2>Why this matters most for public records</H2>
       <p>
-        Government releases are the classic mixed bag: a single FOIA production can contain native-text pages, OCR&apos;d scans, and raw image scans all in one file. That is why <Link href="/search-government-documents" className="text-[var(--accent)] hover:underline">searching government documents</Link> so often means testing for the text layer first and OCR-ing the gaps. Once you know the test, the confusion disappears — you can tell in ten seconds whether a scan will search, and what to do if it won&apos;t.
+        Government releases are the classic mixed bag: a single FOIA production can contain native-text pages, OCR&apos;d scans, and raw image scans all in one file. That mixture used to be the worst case, because the searchable pages hid the fact that other pages were silently unsearchable. Handling it per page — real text where it exists, OCR where it doesn&apos;t — is exactly what <Link href="/search-government-documents" className="text-[var(--accent)] hover:underline">searching government documents</Link> demands. Once the text exists, everything normal applies: <Link href="/how-to-search-pdf" className="text-[var(--accent)] hover:underline">the basics</Link>, searching across <Link href="/search-multiple-pdfs" className="text-[var(--accent)] hover:underline">many files at once</Link>, exact matching, all of it.
       </p>
     </BlogPost>
   );
