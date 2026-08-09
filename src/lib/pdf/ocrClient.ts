@@ -15,6 +15,8 @@ import {
   type OcrResponse,
 } from "./ocrProtocol";
 import { enqueueOcr } from "./ocrQueue";
+import { computeOcrPoolSize } from "./ocrLimits";
+import { readDeviceCapability } from "@/lib/upload/limits";
 
 export interface OcrJobProgress {
   pagesDone: number;
@@ -100,6 +102,8 @@ function execute({
   const stage = { render: 0, encode: 0, recognize: 0, warm: 0 };
   let totalBytes = 0;
   let timedPages = 0;
+  let peakRecognizing = 0;
+  let poolWorkers = 0;
 
   return new Promise<OcrOutcome>((resolve) => {
     const w = getWorker();
@@ -117,6 +121,8 @@ function execute({
       stageMs: timedPages > 0 ? { ...stage } : undefined,
       bytesPerPage:
         timedPages > 0 ? Math.round(totalBytes / timedPages) : undefined,
+      peakRecognizing,
+      poolWorkers,
     });
 
     const cleanup = () => {
@@ -156,6 +162,8 @@ function execute({
           break;
         case "done":
           stage.warm = m.warmMs ?? 0;
+          peakRecognizing = m.peakRecognizing ?? 0;
+          poolWorkers = m.poolWorkers ?? 0;
           finish();
           break;
         case "error":
@@ -186,7 +194,15 @@ function execute({
     w.addEventListener("error", onError);
     signal?.addEventListener("abort", onAbort, { once: true });
 
-    const req: OcrRequest = { type: "run", jobId, buffer, pages };
+    const req: OcrRequest = {
+      type: "run",
+      jobId,
+      buffer,
+      pages,
+      // Decided here because computeOcrPoolSize reads navigator, which the
+      // worker scope does not expose.
+      poolSize: computeOcrPoolSize(readDeviceCapability()),
+    };
     w.postMessage(req, [buffer]);
   });
 }

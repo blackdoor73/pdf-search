@@ -17,6 +17,7 @@ import type {
   SearchOptions,
   SearchProgress,
   OcrProgress,
+  OcrProgressMap,
 } from "@/types";
 import { searchAllPdfs, sha256Hex, getPdfInfo } from "@/lib/pdf/engine";
 import {
@@ -113,8 +114,41 @@ export function useSearchEngine() {
   const [searchState, setSearchState] =
     useState<SearchState>(INITIAL_SEARCH_STATE);
   const [progress, setProgress] = useState<SearchProgress | null>(null);
-  /** Parallel to `progress` — page-granular, only for large OCR runs. */
-  const [ocrProgress, setOcrProgress] = useState<OcrProgress | null>(null);
+  /**
+   * Parallel to `progress` — page-granular, only for large OCR runs. Keyed by
+   * file id rather than a single object, because several scanned files can be
+   * read concurrently and each must own its own row.
+   */
+  const [ocrProgress, setOcrProgress] = useState<OcrProgressMap>({});
+
+  const upsertOcrProgress = useCallback((p: OcrProgress) => {
+    setOcrProgress((prev) => ({ ...prev, [p.fileId]: p }));
+  }, []);
+
+  // Per-file OCR cancel handles, registered by the engine while a file is being
+  // read. A ref, not state: these are imperative callbacks, and re-rendering on
+  // every registration would be pure churn.
+  const ocrCancels = useRef<Map<string, () => void>>(new Map());
+
+  const registerOcrCancel = useCallback((fileId: string, cancel: () => void) => {
+    ocrCancels.current.set(fileId, cancel);
+  }, []);
+  const unregisterOcrCancel = useCallback((fileId: string) => {
+    ocrCancels.current.delete(fileId);
+  }, []);
+  /** Stops OCR for one file, keeping whatever pages it already read. */
+  const cancelFileOcr = useCallback((fileId: string) => {
+    ocrCancels.current.get(fileId)?.();
+  }, []);
+
+  const clearOcrProgressFor = useCallback((fileId: string) => {
+    setOcrProgress((prev) => {
+      if (!(fileId in prev)) return prev;
+      const next = { ...prev };
+      delete next[fileId];
+      return next;
+    });
+  }, []);
   const [searchOptions, setSearchOptions] =
     useState<SearchOptions>(DEFAULT_SEARCH_OPTIONS);
   const [totalSizeBytes, setTotalSizeBytes] = useState(0);
@@ -338,7 +372,7 @@ export function useSearchEngine() {
     reportedMetaIds.current.clear();
     setSearchState(INITIAL_SEARCH_STATE);
     setProgress(null);
-    setOcrProgress(null);
+    setOcrProgress({});
     // Release the OCR worker and the tesseract engine's ~50MB with it. No-op,
     // and no chunk fetched, when OCR never ran.
     releaseOcrIfLive();
@@ -375,7 +409,10 @@ export function useSearchEngine() {
         const results = await searchAllPdfs(files, safeQuery, {
           ...searchOptions,
           ocr: true,
-          onOcrProgress: setOcrProgress,
+          onOcrProgress: upsertOcrProgress,
+          onOcrDone: clearOcrProgressFor,
+          registerOcrCancel,
+          unregisterOcrCancel,
           // Fires for every file whose text layer is missing or artifact-only,
           // whether or not OCR then runs — that is the only way to size how
           // common scanned PDFs actually are among real visitors.
@@ -503,7 +540,7 @@ export function useSearchEngine() {
         }));
       } finally {
         setProgress(null);
-        setOcrProgress(null);
+        setOcrProgress({});
       }
     },
     [
@@ -519,7 +556,7 @@ export function useSearchEngine() {
     abortController.current?.abort();
     setSearchState((prev) => ({ ...prev, status: "idle" }));
     setProgress(null);
-    setOcrProgress(null);
+    setOcrProgress({});
     // A user-initiated cancel should stop OCR immediately rather than waiting
     // for the worker to finish the page it is on.
     releaseOcrIfLive();
@@ -528,7 +565,7 @@ export function useSearchEngine() {
   const clearResults = useCallback(() => {
     setSearchState(INITIAL_SEARCH_STATE);
     setProgress(null);
-    setOcrProgress(null);
+    setOcrProgress({});
   }, []);
 
   return {
@@ -547,6 +584,7 @@ export function useSearchEngine() {
     // Search actions
     search,
     cancelSearch,
+    cancelFileOcr,
     clearResults,
     // Options
     setSearchOptions,

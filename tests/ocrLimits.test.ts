@@ -8,6 +8,8 @@ import {
   ocrSkipMessage,
   ocrTruncatedNote,
   refundBudget,
+  computeOcrPoolSize,
+  OCR_MAX_POOL,
   PAGE_TEXT_CHAR_MIN,
   OCR_MAX_PAGES,
   OCR_MAX_PAGES_PER_SEARCH,
@@ -15,7 +17,12 @@ import {
   OCR_TARGET_DPI,
   OCR_MAX_PIXELS,
 } from "../src/lib/pdf/ocrLimits.ts";
-import { enqueueOcr, resetOcrQueue } from "../src/lib/pdf/ocrQueue.ts";
+import {
+  enqueueOcr,
+  ocrActiveCount,
+  resetOcrQueue,
+  OCR_JOB_LIMIT,
+} from "../src/lib/pdf/ocrQueue.ts";
 
 // ─── pageIsTextless ───────────────────────────────────────────────────────────
 
@@ -392,69 +399,113 @@ test("ocrTruncatedNote: counts and pluralizes correctly", () => {
   assert.match(ocrTruncatedNote(49, 50), /1 more was skipped/);
 });
 
-// ─── enqueueOcr ───────────────────────────────────────────────────────────────
+// ─── enqueueOcr (admission control) ───────────────────────────────────────────
 
-test("enqueueOcr: runs jobs strictly one at a time, in order", async () => {
-  resetOcrQueue();
-  const events: string[] = [];
-  let active = 0;
-
-  const job = (name: string, ms: number) => () =>
-    new Promise<string>((resolve) => {
-      active++;
-      // The whole point of the queue: never two at once.
-      assert.equal(active, 1, `${name} overlapped another job`);
-      events.push(`start:${name}`);
-      setTimeout(() => {
-        events.push(`end:${name}`);
-        active--;
-        resolve(name);
-      }, ms);
-    });
-
-  // Deliberately give the first job the longest delay: if the queue were not
-  // serializing, "c" would finish first and the order would differ.
-  const all = await Promise.all([
-    enqueueOcr(job("a", 30)),
-    enqueueOcr(job("b", 10)),
-    enqueueOcr(job("c", 1)),
-  ]);
-
-  assert.deepEqual(all, ["a", "b", "c"]);
-  assert.deepEqual(events, [
-    "start:a",
-    "end:a",
-    "start:b",
-    "end:b",
-    "start:c",
-    "end:c",
-  ]);
-});
-
-test("enqueueOcr: a rejecting job does not poison the queue", async () => {
-  resetOcrQueue();
-  const boom = enqueueOcr(async () => {
-    throw new Error("page 3 blew up");
+/** A job that blocks until its returned `finish` is called. */
+function gatedJob() {
+  let finish!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    finish = resolve;
   });
-  await assert.rejects(boom, /page 3 blew up/);
+  let started = false;
+  const job = async () => {
+    started = true;
+    await gate;
+    return "done";
+  };
+  return { job, finish, started: () => started };
+}
 
-  // The successor must still run — a single failed file cannot stall OCR for
-  // the rest of the search.
-  const after = await enqueueOcr(async () => "still working");
-  assert.equal(after, "still working");
+const tick = () => new Promise((r) => setTimeout(r, 5));
+
+test("enqueueOcr: admits exactly OCR_JOB_LIMIT concurrently", async () => {
+  resetOcrQueue();
+  const gated = Array.from({ length: OCR_JOB_LIMIT + 1 }, gatedJob);
+  const all = gated.map((g) => enqueueOcr(g.job));
+  await tick();
+
+  // The first LIMIT are running; the extra one has not begun.
+  assert.equal(ocrActiveCount(), OCR_JOB_LIMIT);
+  for (let i = 0; i < OCR_JOB_LIMIT; i++) {
+    assert.equal(gated[i].started(), true, `job ${i} should be running`);
+  }
+  assert.equal(
+    gated[OCR_JOB_LIMIT].started(),
+    false,
+    "the job past the limit must wait"
+  );
+
+  // Freeing one slot admits exactly the waiter.
+  gated[0].finish();
+  await tick();
+  assert.equal(gated[OCR_JOB_LIMIT].started(), true);
+  assert.equal(ocrActiveCount(), OCR_JOB_LIMIT);
+
+  gated.forEach((g) => g.finish());
+  await Promise.all(all);
+  assert.equal(ocrActiveCount(), 0, "every slot must be returned");
 });
 
-test("enqueueOcr: a rejection mid-chain still lets later jobs run in order", async () => {
+test("enqueueOcr: a rejecting job releases its slot", async () => {
+  // The bug this guards: a throwing job that never released its slot would
+  // permanently shrink admission, and enough failures would deadlock OCR.
   resetOcrQueue();
-  const order: string[] = [];
-  const ok = (n: string) => enqueueOcr(async () => { order.push(n); return n; });
+  for (let i = 0; i < OCR_JOB_LIMIT + 3; i++) {
+    await assert.rejects(
+      enqueueOcr(async () => {
+        throw new Error(`boom ${i}`);
+      }),
+      /boom/
+    );
+  }
+  assert.equal(ocrActiveCount(), 0);
+  assert.equal(await enqueueOcr(async () => "ok"), "ok");
+  assert.equal(ocrActiveCount(), 0);
+});
 
-  const p1 = ok("one");
-  const p2 = enqueueOcr(async () => { order.push("bad"); throw new Error("x"); });
-  const p3 = ok("three");
+test("enqueueOcr: parallelism is the point — jobs overlap", async () => {
+  // The old queue ran strictly one at a time. Recognition is ~95% of OCR cost
+  // and there is no threaded WASM build, so overlap is what makes a pool useful.
+  resetOcrQueue();
+  const gated = Array.from({ length: OCR_JOB_LIMIT }, gatedJob);
+  const all = gated.map((g) => enqueueOcr(g.job));
+  await tick();
+  assert.equal(
+    gated.every((g) => g.started()),
+    true,
+    "all admitted jobs should run at once, not in sequence"
+  );
+  gated.forEach((g) => g.finish());
+  await Promise.all(all);
+});
 
-  await p1;
-  await assert.rejects(p2, /x/);
-  await p3;
-  assert.deepEqual(order, ["one", "bad", "three"]);
+// ─── computeOcrPoolSize ───────────────────────────────────────────────────────
+
+test("computeOcrPoolSize: half the cores, capped at OCR_MAX_POOL", () => {
+  assert.equal(computeOcrPoolSize({ hardwareConcurrency: 2 }), 1);
+  assert.equal(computeOcrPoolSize({ hardwareConcurrency: 4 }), 2);
+  assert.equal(computeOcrPoolSize({ hardwareConcurrency: 6 }), 3);
+  assert.equal(computeOcrPoolSize({ hardwareConcurrency: 16 }), OCR_MAX_POOL);
+  assert.equal(OCR_MAX_POOL, 3);
+});
+
+test("computeOcrPoolSize: never returns less than 1", () => {
+  // A single-core machine still has to OCR — just without parallelism.
+  assert.equal(computeOcrPoolSize({ hardwareConcurrency: 1 }), 1);
+  assert.equal(computeOcrPoolSize({ hardwareConcurrency: 0 }), 2); // 0 is "unknown"
+  assert.equal(computeOcrPoolSize({ hardwareConcurrency: -4 }), 2);
+});
+
+test("computeOcrPoolSize: unknown core count assumes 4 → 2 workers", () => {
+  // Matches decideOcr's deliberate run-on-unknown stance: Safari and Firefox
+  // report nothing, and degrading them to serial OCR would be the wrong default.
+  assert.equal(computeOcrPoolSize({}), 2);
+  assert.equal(computeOcrPoolSize(), 2);
+  assert.equal(computeOcrPoolSize({ hardwareConcurrency: NaN }), 2);
+});
+
+test("computeOcrPoolSize: low-memory devices stay at 2 regardless of cores", () => {
+  // Each worker is another ~50MB of WASM.
+  assert.equal(computeOcrPoolSize({ hardwareConcurrency: 16, deviceMemory: 4 }), 2);
+  assert.equal(computeOcrPoolSize({ hardwareConcurrency: 8, deviceMemory: 8 }), 3);
 });

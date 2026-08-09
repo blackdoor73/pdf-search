@@ -68,6 +68,8 @@ interface Row {
   recognizeMs: number;
   warmMs: number;
   kbPerPage: number;
+  peak: number;
+  workers: number;
   matches: number;
   confidence: number;
 }
@@ -130,6 +132,8 @@ export default function OcrBenchPage() {
         encodeMs: sum((r) => r.ocrPerf?.encodeMs ?? 0),
         recognizeMs: sum((r) => r.ocrPerf?.recognizeMs ?? 0),
         warmMs: sum((r) => r.ocrPerf?.warmMs ?? 0),
+        peak: Math.max(0, ...ocr.map((r) => r.ocrPerf?.peakRecognizing ?? 0)),
+        workers: Math.max(0, ...ocr.map((r) => r.ocrPerf?.poolWorkers ?? 0)),
         kbPerPage: ocr.length
           ? Math.round(sum((r) => r.ocrPerf?.bytesPerPage ?? 0) / ocr.length / 1024)
           : 0,
@@ -199,6 +203,8 @@ export default function OcrBenchPage() {
                 <th className={cell}>render</th>
                 <th className={cell}>encode</th>
                 <th className={cell}>recognize</th>
+                <th className={cell}>peak</th>
+                <th className={cell}>wrkrs</th>
                 <th className={cell}>KB/pg</th>
                 <th className={cell}>conf</th>
                 <th className={cell}>matches</th>
@@ -220,6 +226,8 @@ export default function OcrBenchPage() {
                   <td className={cell}>{r.renderMs}</td>
                   <td className={cell}>{r.encodeMs}</td>
                   <td className={cell}>{r.recognizeMs}</td>
+                  <td className={`${cell} text-[var(--accent)]`}>{r.peak}</td>
+                  <td className={cell}>{r.workers}</td>
                   <td className={cell}>{r.kbPerPage}</td>
                   <td className={cell}>{r.confidence}</td>
                   <td className={cell}>{r.matches}</td>

@@ -88,6 +88,9 @@ export interface SearchResult {
     recognizeMs?: number;
     warmMs?: number;
     bytesPerPage?: number;
+    /** Max concurrent recognitions observed, and the pool behind it. */
+    peakRecognizing?: number;
+    poolWorkers?: number;
   };
   /**
    * Short excerpt of extracted text (first page that has any), kept in memory
@@ -193,17 +196,26 @@ export interface SearchProgress {
  * than redefine that unit (which SearchProgress.tsx renders literally), OCR
  * reports separately and the UI shows both — "2 / 5 files" above, "reading
  * scanned page 12 / 40" below. Two truthful statements beat one blended one.
- *
- * A single object rather than a map, because OCR is serialized to one file at a
- * time (see lib/pdf/ocrQueue).
  */
 export interface OcrProgress {
+  /** Keyed on id, not name: two loaded files can share a filename. */
+  fileId: string;
   fileName: string;
   pagesDone: number;
   pagesTotal: number;
   /** "warming" while the engine loads (no page progress yet), then "reading". */
   phase: "warming" | "reading";
 }
+
+/**
+ * Live OCR progress for every file currently being read, keyed by file id.
+ *
+ * Was a single nullable object, on the assumption that OCR ran one file at a
+ * time. Once several files can OCR concurrently that breaks visibly: each file
+ * cleared progress on completion, so whichever finished first blanked the panel
+ * of every file still working.
+ */
+export type OcrProgressMap = Record<string, OcrProgress>;
 
 // ─── Migration Interface (Future MongoDB) ────────────────────────────────────
 // When migrating from cookie-based to MongoDB persistence:

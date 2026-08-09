@@ -25,6 +25,11 @@ export interface OcrRunRequest {
   buffer: ArrayBuffer;
   /** 1-based page numbers to OCR. Already capped by decideOcr(). */
   pages: number[];
+  /**
+   * How many tesseract workers to recognize with. Decided on the main thread by
+   * computeOcrPoolSize(), which needs `navigator` — unavailable in the worker.
+   */
+  poolSize?: number;
 }
 
 export interface OcrCancelRequest {
@@ -80,6 +85,10 @@ export interface OcrDoneMessage {
   ms: number;
   /** Engine warm-up, paid once per cold engine and zero when already warm. */
   warmMs?: number;
+  /** Max concurrent recognitions observed — proves the pool is really used. */
+  peakRecognizing?: number;
+  /** Workers the scheduler had when the job finished. */
+  poolWorkers?: number;
 }
 
 export interface OcrErrorMessage {
@@ -120,4 +129,7 @@ export interface OcrOutcome {
   stageMs?: { render: number; encode: number; recognize: number; warm: number };
   /** Mean encoded bytes per page. */
   bytesPerPage?: number;
+  /** Max concurrent recognitions observed, and the pool size behind it. */
+  peakRecognizing?: number;
+  poolWorkers?: number;
 }

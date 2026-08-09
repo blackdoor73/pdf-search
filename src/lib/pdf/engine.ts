@@ -292,8 +292,13 @@ export interface SearchOrchestrationOptions extends SearchOptions {
    * pass can ship — and be measured — before the OCR pass is enabled.
    */
   ocr?: boolean;
-  /** Fires only for non-silent (large) OCR runs; null clears the panel. */
-  onOcrProgress?: (progress: OcrProgress | null) => void;
+  /** Fires only for non-silent (large) OCR runs, once per progress update. */
+  onOcrProgress?: (progress: OcrProgress) => void;
+  /** This file's OCR finished — drop its progress row. */
+  onOcrDone?: (fileId: string) => void;
+  /** Offers a per-file OCR cancel, so one slow scan can be dropped alone. */
+  registerOcrCancel?: (fileId: string, cancel: () => void) => void;
+  unregisterOcrCancel?: (fileId: string) => void;
   /** Reports the text-layer verdict per file, for telemetry. */
   onTextLayer?: (file: PdfFile, info: TextLayerReport) => void;
 }
@@ -418,16 +423,26 @@ export async function searchAllPdfs(
       }
 
       if (options.ocr && decision.run && ocrBytes && !signal?.aborted) {
+        // A per-file controller chained to the search signal, so one file's OCR
+        // can be cancelled without abandoning the whole search — its partial
+        // pages are still kept and merged. Declared out here so the `finally`
+        // below can detach the relay listener.
+        const fileAbort = new AbortController();
+        const relaySearchAbort = () => fileAbort.abort();
+        signal?.addEventListener("abort", relaySearchAbort, { once: true });
+        options.registerOcrCancel?.(file.id, () => fileAbort.abort());
+
         try {
           const { runOcrJob } = await import("./ocrClient");
           const outcome = await runOcrJob({
             buffer: await ocrBytes(),
             pages: decision.pages,
-            signal,
+            signal: fileAbort.signal,
             onProgress: decision.silent
               ? undefined
               : (p) =>
                   options.onOcrProgress?.({
+                    fileId: file.id,
                     fileName: file.name,
                     pagesDone: p.pagesDone,
                     pagesTotal: p.pagesTotal,
@@ -454,6 +469,8 @@ export async function searchAllPdfs(
             recognizeMs: outcome.stageMs?.recognize,
             warmMs: outcome.stageMs?.warm,
             bytesPerPage: outcome.bytesPerPage,
+            peakRecognizing: outcome.peakRecognizing,
+            poolWorkers: outcome.poolWorkers,
           };
           if (outcome.confidence !== null) ocrConfidence = outcome.confidence;
           if (outcome.failed) {
@@ -463,7 +480,13 @@ export async function searchAllPdfs(
         } catch {
           ocrSkipped = "failed";
         } finally {
-          if (!decision.silent) options.onOcrProgress?.(null);
+          // Clear only THIS file's row. Nulling the whole channel here blanked
+          // every other file that was still being read.
+          if (!decision.silent) options.onOcrDone?.(file.id);
+          options.unregisterOcrCancel?.(file.id);
+          // Drop the relay, or every completed file leaves a listener on the
+          // search signal for the rest of the search.
+          signal?.removeEventListener("abort", relaySearchAbort);
         }
       }
 

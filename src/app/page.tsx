@@ -25,7 +25,7 @@ const ResultCard = dynamic(() => import("@/components/search/ResultCard").then(m
 const ResultsSummary = dynamic(() => import("@/components/search/ResultsSummary").then(m => ({ default: m.ResultsSummary })));
 const PrivacyBadge = dynamic(() => import("@/components/ui/PrivacyBadge").then(m => ({ default: m.PrivacyBadge })));
 const EmptyState = dynamic(() => import("@/components/ui/EmptyState").then(m => ({ default: m.EmptyState })));
-const OcrProgress = dynamic(() => import("@/components/search/OcrProgress").then(m => ({ default: m.OcrProgress })));
+const OcrProgressList = dynamic(() => import("@/components/search/OcrProgress").then(m => ({ default: m.OcrProgressList })));
 const IssueReportButton = dynamic(() => import("@/components/feedback/IssueReportButton").then(m => ({ default: m.IssueReportButton })));
 
 const faqs = [
@@ -87,6 +87,7 @@ export default function HomePage() {
     clearFiles,
     search,
     cancelSearch,
+    cancelFileOcr,
     setSearchOptions,
     canSearch,
     isSearching,
@@ -98,12 +99,13 @@ export default function HomePage() {
     searchState.status === "complete" || searchState.status === "error";
   const hasMatches = searchState.filesWithMatches > 0;
 
-  /**
-   * Summarizes the scanned-PDF situation for the empty state, so a zero-result
-   * search on an image-only PDF explains itself instead of suggesting a
-   * different spelling.
-   */
   const [issueOpen, setIssueOpen] = useState(false);
+
+  // Stable row order so rows don't reshuffle as progress updates arrive.
+  const ocrRows = useMemo(
+    () => Object.values(ocrProgress).sort((a, b) => a.fileName.localeCompare(b.fileName)),
+    [ocrProgress]
+  );
 
   // Computed inline rather than imported from IssueReportButton, so the check
   // costs nothing when that dynamic chunk never loads.
@@ -113,6 +115,11 @@ export default function HomePage() {
       (searchState.filesWithMatches === 0 ||
         searchState.results.some((r) => r.error || r.ocrSkipped)));
 
+  /**
+   * Summarizes the scanned-PDF situation for the empty state, so a zero-result
+   * search on an image-only PDF explains itself instead of suggesting a
+   * different spelling.
+   */
   const scannedSummary = useMemo(() => {
     const scanned = searchState.results.filter(
       (r) => r.textLayer && r.textLayer !== "text"
@@ -400,9 +407,14 @@ export default function HomePage() {
           {isSearching && progress && (
             <SearchProgress progress={progress} filesTotal={files.length} />
           )}
-          {/* Separate, page-granular channel — see the note on OcrProgress. */}
-          {isSearching && ocrProgress && (
-            <OcrProgress progress={ocrProgress} onCancel={cancelSearch} />
+          {/* Separate, page-granular channel — see the note on OcrProgress.
+              One row per file being read; several can run at once. */}
+          {isSearching && ocrRows.length > 0 && (
+            <OcrProgressList
+              items={ocrRows}
+              onCancelFile={cancelFileOcr}
+              onCancelAll={cancelSearch}
+            />
           )}
         </section>
 
