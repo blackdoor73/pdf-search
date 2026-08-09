@@ -18,7 +18,7 @@ const pageFaqSchema = faqSchema([
     { question: "Is PDF search really free for students?", answer: "Yes \u2014 completely free, with no account, no student-email verification, and no page or file limits beyond 200 files and 50 MB each. There\u2019s nothing to upgrade." },
     { question: "Can I search my whole textbook at once?", answer: "Yes. A single textbook PDF searches in seconds, and you can load multiple textbooks and all your lecture slides together and search across all of them at once." },
     { question: "Will my notes and readings stay private?", answer: "Yes. Parsing happens inside your browser tab \u2014 your files are never uploaded to a server, so confidential course materials stay on your device." },
-    { question: "Can I search scanned lecture handouts?", answer: "Only if they have a text layer. A photo or pure scan of a handout has no searchable text until OCR is run on it. Load it and search for a visible word to test." },
+    { question: "Can I search scanned lecture handouts?", answer: "Yes. A photographed or scanned handout has no text layer, so PDFSearch reads it with OCR right in your browser — no upload, no preparation. Recognition is good on clean print and weaker on faint photos, and OCR needs a desktop browser." },
     { question: "Does it work on a school Chromebook?", answer: "Yes. It runs in any modern browser with nothing to install, so locked-down school laptops and Chromebooks work fine." },
 ]);
 
@@ -53,7 +53,7 @@ export default function PdfSearchForStudentsPage() {
           <div className="font-sans text-sm text-[var(--text-2)] leading-relaxed space-y-4 max-w-3xl">
             <p>By week ten, a typical course is a folder of twenty-plus PDFs: the textbook, weekly lecture slides, problem sets, and a few papers the professor assigned. When exam week arrives and you need “where did we define elasticity” or “which lecture covered the Krebs cycle,” opening files one at a time is exactly the wrong tool.</p>
             <p>Load the whole folder into PDFSearch and ask once. Matches come back grouped by file with page numbers, so you jump straight to the slide or page you need. Whole-word and case-sensitive modes matter more than students expect — they separate a defined term from the same word used casually, which is the difference between finding the definition and scrolling past it. The <Link href="/find-words-in-pdf" className="text-[var(--accent)] hover:underline">find-words-in-PDF</Link> workflow is built for exactly this “show me everywhere it appears” pattern.</p>
-            <p>It’s free with no student-email gate, and because parsing happens in your browser, your notes and readings stay on your machine. One caveat worth knowing up front: photographed or scanned handouts need a text layer to be searchable — <Link href="/search-scanned-pdf" className="text-[var(--accent)] hover:underline">here’s how to check</Link>.</p>
+            <p>It’s free with no student-email gate, and because parsing happens in your browser, your notes and readings stay on your machine. Photographed or scanned handouts have no text layer, so they&rsquo;re read with OCR in your browser — <Link href="/search-scanned-pdf" className="text-[var(--accent)] hover:underline">here’s how to check</Link>.</p>
           </div>
         </section>
       }
@@ -90,7 +90,7 @@ export default function PdfSearchForStudentsPage() {
         },
         {
           question: "Can I search scanned lecture handouts?",
-          answer: "Only if they have a text layer. A photo or pure scan of a handout has no searchable text until OCR is run on it. Load it and search for a visible word to test.",
+          answer: "Yes. A photographed or scanned handout has no text layer, so PDFSearch reads it with OCR right in your browser — no upload, no preparation. Recognition is good on clean print and weaker on faint photos, and OCR needs a desktop browser.",
         },
         {
           question: "Does it work on a school Chromebook?",

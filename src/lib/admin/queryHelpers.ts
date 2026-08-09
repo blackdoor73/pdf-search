@@ -2,8 +2,12 @@
  * Pure, DB-free helpers for the admin query layer: param clamps, CSV
  * serialization, and the documents-listing SQL assembly. Kept free of
  * path-alias imports so node --test can load them directly
- * (tests/adminQueries.test.ts).
+ * (tests/adminQueries.test.ts) — hence the relative import below.
  */
+
+// Explicit .ts extension: Node's ESM resolver runs this file directly under
+// `node --test` and will not infer it.
+import { FEEDBACK_CATEGORIES } from "../feedback/schema.ts";
 
 export function clampDays(raw: string | null, fallback = 30): number {
   // Number(null) is 0, which would silently clamp a missing param to 1 day —
@@ -128,14 +132,10 @@ export interface FeedbackFilters {
   pageSize: number;
 }
 
-const FEEDBACK_CATEGORY_SET = new Set([
-  "bug",
-  "feature",
-  "general",
-  "ui-ux",
-  "performance",
-  "other",
-]);
+// Derived from the shared schema rather than re-listed: a hardcoded copy here
+// silently dropped any new category from the admin filter (it was missing
+// "issue" the moment that category was added).
+const FEEDBACK_CATEGORY_SET: ReadonlySet<string> = new Set(FEEDBACK_CATEGORIES);
 
 /**
  * Pure WHERE/ORDER/LIMIT assembly for the feedback listing — testable
@@ -169,7 +169,7 @@ export function buildFeedbackQuery(f: FeedbackFilters): {
 
   return {
     text: `SELECT id, to_char(ts, 'YYYY-MM-DD HH24:MI') AS at, category, message,
-             email, page, country, browser, os, device, status, admin_note
+             email, page, country, browser, os, device, status, admin_note, diagnostics
            FROM feedback
            WHERE ${where}
            ORDER BY ts DESC, id DESC

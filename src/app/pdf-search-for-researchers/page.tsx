@@ -19,7 +19,7 @@ const pageFaqSchema = faqSchema([
     { question: "Does it handle two-column academic PDFs?", answer: "Yes. Search runs on the text extracted from the PDF, so multi-column layouts, footnotes, and endnotes are all searchable as long as the PDF has a real text layer." },
     { question: "Can I export search results?", answer: "Yes. Every match can be exported to CSV with the file name, page number, and surrounding text \u2014 useful for building a synthesis matrix or evidence table." },
     { question: "Are my unpublished manuscripts kept private?", answer: "Yes. PDFs are parsed inside your browser and never uploaded, so embargoed preprints and unpublished drafts stay entirely on your device." },
-    { question: "What about scanned or older papers?", answer: "Scanned papers need an OCR text layer to be searchable. Load one and search for a visible word \u2014 no matches means it\u2019s image-only and needs OCR first." },
+    { question: "What about scanned or older papers?", answer: "Scanned papers have no text layer, so PDFSearch reads them with OCR in your browser \u2014 nothing is uploaded. Recognition is reliable on clean print but weaker on faint or skewed scans, so OCR matches are badged with a confidence figure." },
 ]);
 
 const pageBreadcrumb = breadcrumbSchema([
@@ -94,7 +94,7 @@ export default function PdfSearchForResearchersPage() {
         },
         {
           question: "What about scanned or older papers?",
-          answer: "Scanned papers need an OCR text layer to be searchable. Load one and search for a visible word \u2014 no matches means it\u2019s image-only and needs OCR first.",
+          answer: "Scanned papers have no text layer, so PDFSearch reads them with OCR in your browser \u2014 nothing is uploaded. Recognition is reliable on clean print but weaker on faint or skewed scans, so OCR matches are badged with a confidence figure.",
         },
       ]}
       relatedTools={[

@@ -186,16 +186,16 @@ const PDF_MAGIC_BYTES = new Uint8Array([0x25, 0x50, 0x44, 0x46]); // %PDF
 export async function validatePdfFile(
   file: File,
   /**
-   * Per-file ceiling for this device (see lib/upload/limits.ts). Defaults to
-   * the flat cap so server-side and test callers behave exactly as before.
+   * Hard upper bound — the size past which the file is refused outright.
+   * Callers pass the absolute ceiling (lib/upload/limits.ts); the softer,
+   * device-specific tier is a warning handled by the caller, not here.
+   * Defaults to the flat cap so server-side callers behave as before.
    */
   maxBytes: number = MAX_FILE_SIZE_BYTES
 ): Promise<{
   valid: boolean;
   error?: string;
   sanitizedName?: string;
-  /** True when the file exceeds this device's limit but is under the ceiling. */
-  oversizeForDevice?: boolean;
 }> {
   // Size check
   if (file.size === 0) {
@@ -208,10 +208,9 @@ export async function validatePdfFile(
       valid: false,
       // Say what the file actually is, what the limit is, and why it exists —
       // "File too large. Max 50MB" left users with nothing to act on.
-      error: `${file.name} is ${mb(file.size)}. This device supports up to ${mb(
+      error: `${file.name} is ${mb(file.size)}. The maximum is ${mb(
         maxBytes
-      )} per PDF, because files are processed in your browser. Try splitting it, or use a desktop.`,
-      oversizeForDevice: file.size <= MAX_FILE_SIZE_BYTES,
+      )} per PDF, because files are processed in your browser. Try splitting it into smaller files.`,
     };
   }
 

@@ -119,7 +119,7 @@ export default function FreePdfSearchEnginePage() {
           </h2>
           <div className="font-sans text-sm text-[var(--text-2)] leading-relaxed space-y-4 max-w-3xl">
             <p>Plenty of tools advertise free PDF search and then meter it: three files a day, ten pages per file, results truncated until you subscribe. Free should mean the actual workflow is free — load real documents, run real searches, export real results.</p>
-            <p>PDFSearch can be genuinely free because there’s no server doing the work: your browser does the parsing, so there’s no compute bill to recoup. The trade-off is honest too — very large jobs are bounded by your machine, and scanned PDFs <Link href="/search-scanned-pdf" className="text-[var(--accent)] hover:underline">need a text layer</Link>. For most personal document libraries — statements, manuals, receipts, papers — it’s more than enough, and <Link href="/bulk-pdf-search" className="text-[var(--accent)] hover:underline">bulk search</Link> covers the heavy sessions.</p>
+            <p>PDFSearch can be genuinely free because there’s no server doing the work: your browser does the parsing, so there’s no compute bill to recoup. The trade-off is honest too — very large jobs are bounded by your machine, and scanned PDFs are read with <Link href="/search-scanned-pdf" className="text-[var(--accent)] hover:underline">in-browser OCR</Link>, which costs time and needs a desktop. For most personal document libraries — statements, manuals, receipts, papers — it’s more than enough, and <Link href="/bulk-pdf-search" className="text-[var(--accent)] hover:underline">bulk search</Link> covers the heavy sessions.</p>
           </div>
         </section>
       }

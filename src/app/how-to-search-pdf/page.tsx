@@ -167,7 +167,7 @@ export default function HowToSearchPdfPage() {
           <div className="font-sans text-sm text-[var(--text-2)] leading-relaxed space-y-4 max-w-3xl">
             <p>Every PDF viewer has a find box, so why does “how to search a PDF” get asked so often? Because the built-in find only works one file at a time, hides matches behind next/next/next clicking, and gives you no overview of where a term appears. The moment you need “every page that mentions this” or “which of these files contains that,” find-in-page runs out of road — we break down exactly where in <Link href="/blog/ctrlf-vs-advanced-pdf-search" className="text-[var(--accent)] hover:underline">Ctrl+F vs advanced PDF search</Link>.</p>
             <p>PDFSearch lists every match at once with surrounding context, works across <Link href="/search-multiple-pdfs" className="text-[var(--accent)] hover:underline">multiple PDFs simultaneously</Link>, and supports case-sensitive and whole-word modes for precise lookups like part numbers or legal defined terms — more on that in <Link href="/search-text-in-pdf" className="text-[var(--accent)] hover:underline">search text in PDF</Link>.</p>
-            <p>One honest caveat: a PDF must contain a text layer to be searchable. Pure image scans need OCR first — <Link href="/search-scanned-pdf" className="text-[var(--accent)] hover:underline">here is how to tell and what to do</Link>.</p>
+            <p>One honest caveat: a PDF needs text to be searchable. Pure image scans have none, so they’re read with OCR in your browser — <Link href="/search-scanned-pdf" className="text-[var(--accent)] hover:underline">here is how to tell and what to do</Link>.</p>
           </div>
         </section>
       }

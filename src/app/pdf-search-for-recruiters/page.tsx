@@ -19,7 +19,7 @@ const pageFaqSchema = faqSchema([
     { question: "Can I match a specific skill exactly?", answer: "Yes. Whole-word and case-sensitive search let you match a precise skill or tool \u2014 so \u201cGo\u201d or \u201cReact\u201d matches the skill, not an unrelated word." },
     { question: "Is candidate data kept private?", answer: "Yes. R\u00e9sum\u00e9s are parsed inside your browser and never uploaded to a server, so candidate personal data stays on your device and under your control." },
     { question: "Can I export a shortlist?", answer: "Yes. Export all matches to CSV with the candidate\u2019s file name and the matching line, giving you a keyword-screened shortlist to review or share." },
-    { question: "Do r\u00e9sum\u00e9s need to be a particular format?", answer: "Any text-based PDF r\u00e9sum\u00e9 works. A r\u00e9sum\u00e9 that\u2019s a scanned image needs OCR first to be searchable \u2014 test by searching a word visible on the page." },
+    { question: "Do r\u00e9sum\u00e9s need to be a particular format?", answer: "Any text-based PDF r\u00e9sum\u00e9 works. A r\u00e9sum\u00e9 that\u2019s a scanned image is read with OCR in your browser \u2014 nothing is uploaded \u2014 though recognition can garble an unusual name, so confirm before relying on it." },
 ]);
 
 const pageBreadcrumb = breadcrumbSchema([
@@ -94,7 +94,7 @@ export default function PdfSearchForRecruitersPage() {
         },
         {
           question: "Do r\u00e9sum\u00e9s need to be a particular format?",
-          answer: "Any text-based PDF r\u00e9sum\u00e9 works. A r\u00e9sum\u00e9 that\u2019s a scanned image needs OCR first to be searchable \u2014 test by searching a word visible on the page.",
+          answer: "Any text-based PDF r\u00e9sum\u00e9 works. A r\u00e9sum\u00e9 that\u2019s a scanned image is read with OCR in your browser \u2014 nothing is uploaded \u2014 though recognition can garble an unusual name, so confirm before relying on it.",
         },
       ]}
       relatedTools={[

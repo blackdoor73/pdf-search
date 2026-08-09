@@ -84,7 +84,10 @@ export function FeedbackWidget() {
         type="button"
         onClick={openModal}
         aria-label="Send feedback"
-        className="fixed bottom-4 right-4 z-[80] flex items-center gap-2 bg-[var(--accent)] text-black px-3.5 py-2.5 shadow-lg font-mono text-xs font-semibold hover:opacity-90 transition-opacity"
+        // min-h-11 = 44px touch target (icon-only on mobile was ~40px);
+        // safe-area margin keeps it off the iOS home indicator.
+        className="fixed bottom-4 right-4 z-[80] flex min-h-11 items-center gap-2 bg-[var(--accent)] text-black px-3.5 py-2.5 shadow-lg font-mono text-xs font-semibold hover:opacity-90 transition-opacity"
+        style={{ marginBottom: "env(safe-area-inset-bottom)" }}
       >
         <MessageSquarePlus className="w-4 h-4" />
         <span className="hidden sm:inline">Feedback</span>

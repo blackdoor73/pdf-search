@@ -56,7 +56,43 @@ export interface SearchResult {
   totalPages: number;
   /** Time taken to search this file in ms */
   searchDurationMs: number;
+  /**
+   * Non-fatal per-file failure. A file that fails is reported with zero matches
+   * rather than failing the whole search.
+   */
+  error?: string;
+  // ─── Text layer / OCR ───────────────────────────────────────────────────────
+  /** Verdict from the text-layer heuristic. Absent when detection didn't run. */
+  textLayer?: TextLayerVerdict;
+  /** Pages with no usable embedded text layer. */
+  textlessPages?: number[];
+  /** Pages whose text came from OCR rather than the embedded layer. */
+  ocrPages?: number[];
+  /** Why OCR did not run (or did not finish) despite a scanned verdict. */
+  ocrSkipped?: OcrSkipped;
+  /** Mean OCR confidence, 0-100, across recognized pages. */
+  ocrConfidence?: number;
+  /** Wall-clock ms spent on OCR for this file. */
+  ocrMs?: number;
+  /**
+   * Short excerpt of extracted text (first page that has any), kept in memory
+   * for the opt-in issue-report diagnostics. Never sent anywhere unless the
+   * visitor explicitly includes it in a report.
+   */
+  sampleText?: string;
 }
+
+/** Mirrors TextLayerVerdict in @/lib/pdf/ocrLimits (kept structural to avoid a
+ *  runtime import from the types module). */
+export type TextLayerVerdict = "text" | "scanned" | "mixed";
+
+export type OcrSkipped =
+  | "mobile"
+  | "low-memory"
+  | "unsupported"
+  | "budget"
+  | "cancelled"
+  | "failed";
 
 export interface SearchState {
   status: "idle" | "running" | "complete" | "error";
@@ -132,6 +168,26 @@ export interface SearchProgress {
   completed: number;
   currentFile: string;
   percentage: number;
+}
+
+/**
+ * OCR progress — a channel parallel to SearchProgress, not a replacement.
+ *
+ * SearchProgress is file-granular ("2 / 5 files"), and OCR would make it lie:
+ * a 40-page scan inside a 5-file search freezes it at 40% for a minute. Rather
+ * than redefine that unit (which SearchProgress.tsx renders literally), OCR
+ * reports separately and the UI shows both — "2 / 5 files" above, "reading
+ * scanned page 12 / 40" below. Two truthful statements beat one blended one.
+ *
+ * A single object rather than a map, because OCR is serialized to one file at a
+ * time (see lib/pdf/ocrQueue).
+ */
+export interface OcrProgress {
+  fileName: string;
+  pagesDone: number;
+  pagesTotal: number;
+  /** "warming" while the engine loads (no page progress yet), then "reading". */
+  phase: "warming" | "reading";
 }
 
 // ─── Migration Interface (Future MongoDB) ────────────────────────────────────

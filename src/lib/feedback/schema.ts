@@ -6,9 +6,14 @@
  */
 
 import { z } from "zod";
+// Explicit .ts extension: this module is loaded directly by `node --test`
+// (tests/feedbackSchema.test.ts), where Node's ESM resolver will not infer it.
+import { diagnosticsSchema } from "./diagnostics.ts";
 
 export const FEEDBACK_CATEGORIES = [
   "bug",
+  /** Search-specific report carrying diagnostics — see ./diagnostics. */
+  "issue",
   "feature",
   "general",
   "ui-ux",
@@ -20,6 +25,7 @@ export type FeedbackCategory = (typeof FEEDBACK_CATEGORIES)[number];
 
 export const FEEDBACK_CATEGORY_LABELS: Record<FeedbackCategory, string> = {
   bug: "Bug report",
+  issue: "Search problem",
   feature: "Feature request",
   general: "General feedback",
   "ui-ux": "UI / UX suggestion",
@@ -40,6 +46,11 @@ export const feedbackSchema = z.object({
   website: z.string().max(0).optional().or(z.literal("")),
   /** Ms since the widget opened; humans take longer than a beat. */
   elapsedMs: z.number().int().nonnegative().optional(),
+  /** Search context for "issue" reports. Never contains PDF bytes. */
+  diagnostics: diagnosticsSchema.optional(),
+  /** Anonymous cookie + per-tab session ids, for correlating with telemetry. */
+  anonId: z.string().max(64).optional(),
+  sessionId: z.string().max(64).optional(),
 });
 
 export type FeedbackInput = z.infer<typeof feedbackSchema>;

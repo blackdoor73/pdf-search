@@ -9,6 +9,7 @@
  */
 
 import { FEEDBACK_CATEGORY_LABELS, type FeedbackCategory } from "./schema";
+import { formatDiagnostics, type Diagnostics } from "./diagnostics";
 
 export function notifyFeedback(row: {
   category: FeedbackCategory;
@@ -19,6 +20,9 @@ export function notifyFeedback(row: {
   browser?: string | null;
   os?: string | null;
   device?: string | null;
+  /** Search context for "issue" reports — the whole point of those reports, so
+   *  it is rendered inline rather than left for the admin UI. */
+  diagnostics?: Diagnostics | null;
 }): void {
   const apiKey = process.env.RESEND_API_KEY;
   const to = process.env.FEEDBACK_NOTIFY_EMAIL;
@@ -34,6 +38,10 @@ export function notifyFeedback(row: {
     "",
     row.message,
   ];
+
+  if (row.diagnostics) {
+    lines.push("", "─── search diagnostics ───", formatDiagnostics(row.diagnostics));
+  }
 
   // Not awaited — this runs after the response is already committed.
   fetch("https://api.resend.com/emails", {

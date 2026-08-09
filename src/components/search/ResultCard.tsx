@@ -17,6 +17,10 @@ export function ResultCard({ result, query: _query, index }: ResultCardProps) {
 
   const hasMatches = result.matches.length > 0;
   const hasError = "error" in result && result.error;
+  const ocrPageCount = result.ocrPages?.length ?? 0;
+  /** Scanned pages that were never read — the case worth flagging loudly. */
+  const unreadScan =
+    result.textLayer && result.textLayer !== "text" && ocrPageCount === 0;
 
   const copyUrl = async () => {
     if (result.sourceUrl) {
@@ -73,6 +77,12 @@ export function ResultCard({ result, query: _query, index }: ResultCardProps) {
           <p className="font-mono text-[10px] text-[var(--text-3)] mt-0.5">
             {result.totalPages > 0 && `${result.totalPages} pages · `}
             {result.searchDurationMs}ms
+            {ocrPageCount > 0 && (
+              <span className="text-[var(--accent)]/80">
+                {" · "}
+                {ocrPageCount} page{ocrPageCount > 1 ? "s" : ""} read by OCR
+              </span>
+            )}
             {result.sourceUrl && (
               <span className="ml-2 text-[var(--blue)]/70 truncate max-w-[200px] inline-block align-bottom">
                 {result.sourceUrl}
@@ -111,6 +121,34 @@ export function ResultCard({ result, query: _query, index }: ResultCardProps) {
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </>
+          )}
+
+          {/* OCR provenance — shown alongside the match count, because a match
+              found by OCR is worth trusting slightly less than one from a real
+              text layer. */}
+          {ocrPageCount > 0 && (
+            <span
+              className="bg-yellow-500/10 text-[var(--accent)] font-mono text-[10px] px-2 py-1 border border-[var(--accent)]/25"
+              title={`Scanned pages were read with OCR in your browser${
+                result.ocrConfidence
+                  ? ` (${Math.round(result.ocrConfidence)}% confidence)`
+                  : ""
+              }`}
+            >
+              OCR
+            </span>
+          )}
+          {unreadScan && (
+            <span
+              className="bg-[var(--border)] text-[var(--text-3)] font-mono text-[10px] px-2 py-1"
+              title={
+                result.ocrSkipped
+                  ? `Scanned pages were not read (${result.ocrSkipped})`
+                  : "This PDF has no text layer"
+              }
+            >
+              Scanned — no text
+            </span>
           )}
 
           {/* Match badge */}

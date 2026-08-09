@@ -38,6 +38,30 @@ export const homepageFaqSchema = {
     },
     {
       "@type": "Question",
+      name: "What is the maximum PDF file size?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Each PDF file can be up to 50 MB. You can load up to 200 PDFs per session. Large files are processed page by page to stay within browser memory limits.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Can I search scanned PDFs?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Yes. If a PDF has no text layer, PDFSearch detects that and reads the scanned pages with OCR (optical character recognition) right in your browser — nothing is uploaded. Short documents are read automatically; longer ones show progress so you can cancel. OCR needs a desktop browser with enough memory, and recognition isn't perfect, so results on a scan can be slightly less exact than on a real text layer.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Does PDFSearch support case-sensitive search?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Yes. Toggle the case-sensitive option in the search bar to match exact capitalization. You can also enable whole-word matching to find standalone words rather than substrings.",
+      },
+    },
+    {
+      "@type": "Question",
       name: "Can I search PDFs from a URL without downloading them?",
       acceptedAnswer: {
         "@type": "Answer",

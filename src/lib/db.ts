@@ -155,16 +155,10 @@ async function migrate(): Promise<void> {
       admin_note TEXT
     )
   `;
+  // Search context for "issue" reports: query, options, and per-file metadata
+  // (page counts, text-layer verdict, OCR outcome) plus an opt-in text excerpt.
+  // Never PDF bytes. Nullable so every existing row stays valid.
+  await sql`ALTER TABLE feedback ADD COLUMN IF NOT EXISTS diagnostics JSONB`;
   await sql`CREATE INDEX IF NOT EXISTS feedback_ts_idx ON feedback (ts DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS feedback_status_ts_idx ON feedback (status, ts DESC)`;
-
-  // Admin-editable runtime settings (currently the geo access rules).
-  // Generic key/value so future settings reuse it without a migration.
-  await sql`
-    CREATE TABLE IF NOT EXISTS app_settings (
-      key        TEXT PRIMARY KEY,
-      value      JSONB NOT NULL,
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    )
-  `;
 }

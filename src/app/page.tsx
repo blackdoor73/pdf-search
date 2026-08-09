@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { ShieldCheck, Download, Zap, Lock, FileText, Search, Globe, CheckCircle } from "lucide-react";
@@ -25,6 +25,8 @@ const ResultCard = dynamic(() => import("@/components/search/ResultCard").then(m
 const ResultsSummary = dynamic(() => import("@/components/search/ResultsSummary").then(m => ({ default: m.ResultsSummary })));
 const PrivacyBadge = dynamic(() => import("@/components/ui/PrivacyBadge").then(m => ({ default: m.PrivacyBadge })));
 const EmptyState = dynamic(() => import("@/components/ui/EmptyState").then(m => ({ default: m.EmptyState })));
+const OcrProgress = dynamic(() => import("@/components/search/OcrProgress").then(m => ({ default: m.OcrProgress })));
+const IssueReportButton = dynamic(() => import("@/components/feedback/IssueReportButton").then(m => ({ default: m.IssueReportButton })));
 
 const faqs = [
   {
@@ -55,7 +57,7 @@ const faqs = [
   {
     question: "Can I search scanned PDFs?",
     answer:
-      "PDFSearch works with text-layer PDFs. Scanned PDFs that are purely image-based require OCR (optical character recognition) to extract text. If your scanned PDF was saved with an embedded text layer, it will work perfectly.",
+      "Yes. If a PDF has no text layer, PDFSearch detects that and reads the scanned pages with OCR (optical character recognition) right in your browser — nothing is uploaded. Short documents are read automatically; longer ones show progress so you can cancel. OCR needs a desktop browser with enough memory, and recognition isn't perfect, so results on a scan can be slightly less exact than on a real text layer.",
   },
   {
     question: "Does PDFSearch support case-sensitive search?",
@@ -76,6 +78,7 @@ export default function HomePage() {
     files,
     searchState,
     progress,
+    ocrProgress,
     searchOptions,
     totalSizeBytes,
     addFiles,
@@ -95,6 +98,37 @@ export default function HomePage() {
     searchState.status === "complete" || searchState.status === "error";
   const hasMatches = searchState.filesWithMatches > 0;
 
+  /**
+   * Summarizes the scanned-PDF situation for the empty state, so a zero-result
+   * search on an image-only PDF explains itself instead of suggesting a
+   * different spelling.
+   */
+  const [issueOpen, setIssueOpen] = useState(false);
+
+  // Computed inline rather than imported from IssueReportButton, so the check
+  // costs nothing when that dynamic chunk never loads.
+  const hasReportableIssue =
+    searchState.status === "error" ||
+    (searchState.status === "complete" &&
+      (searchState.filesWithMatches === 0 ||
+        searchState.results.some((r) => r.error || r.ocrSkipped)));
+
+  const scannedSummary = useMemo(() => {
+    const scanned = searchState.results.filter(
+      (r) => r.textLayer && r.textLayer !== "text"
+    );
+    if (scanned.length === 0) return undefined;
+    // Report a skip reason only when it applies to every scanned file; a mixed
+    // bag would make any single explanation wrong.
+    const reasons = new Set(scanned.map((r) => r.ocrSkipped));
+    return {
+      fileCount: scanned.length,
+      fileName: scanned[0]?.fileName,
+      ocrSkipped:
+        reasons.size === 1 ? scanned[0]?.ocrSkipped ?? undefined : undefined,
+    };
+  }, [searchState.results]);
+
   const handleAddFiles = useCallback(
     async (incoming: File[]) => {
       const result = await addFiles(incoming);
@@ -106,6 +140,11 @@ export default function HomePage() {
         );
       } else if (result.skipped.length > 0) {
         toast.warning(result.skipped[0]);
+      }
+      // Loaded, but big enough to be worth flagging — shown after the success
+      // toast so the file still visibly arrived.
+      if (result.warnings.length > 0) {
+        toast.warning(result.warnings[0]);
       }
       return result;
     },
@@ -361,6 +400,10 @@ export default function HomePage() {
           {isSearching && progress && (
             <SearchProgress progress={progress} filesTotal={files.length} />
           )}
+          {/* Separate, page-granular channel — see the note on OcrProgress. */}
+          {isSearching && ocrProgress && (
+            <OcrProgress progress={ocrProgress} onCancel={cancelSearch} />
+          )}
         </section>
 
         {/* 03 — Results */}
@@ -398,7 +441,11 @@ export default function HomePage() {
                 </div>
               </ErrorBoundary>
             ) : (
-              <EmptyState query={searchState.query} />
+              <EmptyState
+                query={searchState.query}
+                scanned={scannedSummary}
+                onReport={() => setIssueOpen(true)}
+              />
             )}
           </section>
         )}
@@ -407,6 +454,18 @@ export default function HomePage() {
         <section className="animate-slide-in stagger-4">
           <PrivacyBadge />
         </section>
+
+        {/* Contextual issue reporter — mounts only when a search disappointed,
+            so the diagnostics chunk stays unfetched for everyone else. */}
+        {hasReportableIssue && (
+          <IssueReportButton
+            searchState={searchState}
+            searchOptions={searchOptions}
+            files={files}
+            open={issueOpen}
+            onOpenChange={setIssueOpen}
+          />
+        )}
 
         {/* ── Features Section ── */}
         <section aria-labelledby="features-heading" className="animate-slide-in stagger-4 pt-4">
@@ -539,7 +598,14 @@ export default function HomePage() {
               <details key={faq.question} className="card p-4 group">
                 <summary className="font-mono text-sm font-semibold text-[var(--text)] cursor-pointer list-none flex items-start justify-between gap-3">
                   <span>{faq.question}</span>
-                  <span className="text-[var(--accent)] shrink-0 mt-0.5 text-base leading-none select-none">+</span>
+                  {/* Rotating 45° turns the + into a ×, so the affordance
+                      reflects open state. One element, so it can't desync. */}
+                  <span
+                    aria-hidden="true"
+                    className="text-[var(--accent)] shrink-0 mt-0.5 text-base leading-none select-none motion-safe:transition-transform motion-safe:duration-200 group-open:rotate-45"
+                  >
+                    +
+                  </span>
                 </summary>
                 <p className="font-sans text-xs text-[var(--text-2)] leading-relaxed mt-3">
                   {faq.answer}

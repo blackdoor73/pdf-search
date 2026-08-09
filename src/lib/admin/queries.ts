@@ -1001,6 +1001,9 @@ export async function getFeedback(f: FeedbackFilters) {
       device: String(r.device ?? ""),
       status: String(r.status),
       adminNote: String(r.admin_note ?? ""),
+      // Passed through unvalidated; the page validates before rendering so a
+      // malformed row cannot break the inbox.
+      diagnostics: r.diagnostics ?? null,
     })),
     total: num(countRow?.total),
     newCount: num(countRow?.new_count),

@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 const pageFaqSchema = faqSchema([
     { question: "Can I search a long FOIA release?", answer: "Yes. Releases of several hundred pages search in seconds because the work happens locally in your browser. Each file can be up to 50 MB." },
     { question: "Can I search across a multi-file release?", answer: "Yes. Load the whole release \u2014 up to 200 files \u2014 and run one query; results group by document so you can see which files mention a name or term." },
-    { question: "Why do some government PDFs return no matches?", answer: "Because they\u2019re scanned images without an OCR text layer. Search for a word you can see on the page \u2014 no match means that file is image-only and needs OCR first." },
+    { question: "Why do some government PDFs return no matches?", answer: "Usually because they\u2019re scanned images with no text layer. PDFSearch detects that and reads those pages with OCR in your browser, so they become searchable without any preparation. If OCR can\u2019t run \u2014 on a phone, for instance \u2014 the empty result says so rather than leaving you guessing." },
     { question: "Are the records kept private?", answer: "Yes. Documents are parsed in your browser and never uploaded, so sensitive public-records material stays on your device \u2014 important for journalists and researchers." },
     { question: "Can I match a name exactly?", answer: "Yes. Whole-word and case-sensitive search let you match a specific name or defined term precisely without catching unrelated words." },
 ]);
@@ -86,7 +86,7 @@ export default function SearchGovernmentDocumentsPage() {
         },
         {
           question: "Why do some government PDFs return no matches?",
-          answer: "Because they\u2019re scanned images without an OCR text layer. Search for a word you can see on the page \u2014 no match means that file is image-only and needs OCR first.",
+          answer: "Usually because they\u2019re scanned images with no text layer. PDFSearch detects that and reads those pages with OCR in your browser, so they become searchable without any preparation. If OCR can\u2019t run \u2014 on a phone, for instance \u2014 the empty result says so rather than leaving you guessing.",
         },
         {
           question: "Are the records kept private?",

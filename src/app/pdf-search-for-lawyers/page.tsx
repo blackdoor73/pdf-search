@@ -19,7 +19,7 @@ const pageFaqSchema = faqSchema([
     { question: "Can it handle a 500-page document?", answer: "Yes. Long filings, discovery productions, and transcripts search in seconds because the work happens locally. Each file can be up to 50 MB." },
     { question: "Can I match a defined term exactly?", answer: "Yes. Case-sensitive and whole-word search let you match a defined term like \u201cConfidential Information\u201d precisely without catching unrelated lowercase uses." },
     { question: "Do I need a vendor agreement or DPA?", answer: "No. Because nothing is uploaded or processed on a server, there is no data-processing arrangement to sign \u2014 the tool never receives your files." },
-    { question: "Can I search scanned exhibits?", answer: "Only if they have been OCR\u2019d. A raw scan is an image with no searchable text. Load it and search for a visible word to confirm whether a text layer exists." },
+    { question: "Can I search scanned exhibits?", answer: "Yes. A raw scan has no searchable text, so PDFSearch reads it with OCR in your browser \u2014 the exhibit is never uploaded. Matches found by OCR are badged with a confidence figure; verify anything you intend to rely on against the page itself." },
 ]);
 
 const pageBreadcrumb = breadcrumbSchema([
@@ -53,7 +53,7 @@ export default function PdfSearchForLawyersPage() {
           <div className="font-sans text-sm text-[var(--text-2)] leading-relaxed space-y-4 max-w-3xl">
             <p>For legal work, the usual objection to any online tool is the first one that matters: you cannot upload privileged client material to some vendor’s server. That single constraint rules out most “PDF search” services. PDFSearch is different in exactly the way that matters — the document never leaves your browser. There is no upload, no server copy, no vendor agreement to negotiate, because the search runs locally in the page.</p>
             <p>On top of that privacy floor, it’s genuinely fast on the documents lawyers actually handle: a 500-page discovery production, a stack of contracts, a deposition transcript. Search a defined term with case sensitivity on and every occurrence comes back with page numbers — “Change of Control” matches the defined term, not a stray lowercase phrase. Across a whole production, <Link href="/bulk-pdf-search" className="text-[var(--accent)] hover:underline">bulk PDF search</Link> confirms in one pass which documents mention a name or clause.</p>
-            <p>The honest caveats: scanned exhibits need OCR before their text is searchable (<Link href="/search-scanned-pdf" className="text-[var(--accent)] hover:underline">how to check</Link>), and this is a search tool, not legal analysis. For contracts and filings specifically, <Link href="/pdf-search-for-finance" className="text-[var(--accent)] hover:underline">searching financial filings</Link> shares the same exact-match approach.</p>
+            <p>The honest caveats: scanned exhibits are read with OCR, which is accurate but not perfect (<Link href="/search-scanned-pdf" className="text-[var(--accent)] hover:underline">how to check</Link>), and this is a search tool, not legal analysis. For contracts and filings specifically, <Link href="/pdf-search-for-finance" className="text-[var(--accent)] hover:underline">searching financial filings</Link> shares the same exact-match approach.</p>
           </div>
         </section>
       }
@@ -94,7 +94,7 @@ export default function PdfSearchForLawyersPage() {
         },
         {
           question: "Can I search scanned exhibits?",
-          answer: "Only if they have been OCR\u2019d. A raw scan is an image with no searchable text. Load it and search for a visible word to confirm whether a text layer exists.",
+          answer: "Yes. A raw scan has no searchable text, so PDFSearch reads it with OCR in your browser \u2014 the exhibit is never uploaded. Matches found by OCR are badged with a confidence figure; verify anything you intend to rely on against the page itself.",
         },
       ]}
       relatedTools={[

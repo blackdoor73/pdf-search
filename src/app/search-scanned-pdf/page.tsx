@@ -3,16 +3,16 @@ import Link from "next/link";
 import { LandingPageShell } from "@/components/LandingPageShell";
 
 export const metadata: Metadata = {
-  title: "Search Inside Scanned PDF — Find Text in Scanned Documents",
+  title: "Search Inside Scanned PDF — Built-in OCR, In Your Browser",
   description:
-    "Learn how to search text inside scanned PDF files. PDFSearch works with any PDF that has a text layer. Understand scanned PDFs and OCR, and find the right tool for your needs.",
+    "Search text inside scanned PDF files. PDFSearch detects PDFs with no text layer and reads them with OCR in your browser — nothing is uploaded. Free and instant.",
   alternates: {
     canonical: "https://www.pdfsearch.info/search-scanned-pdf",
   },
   openGraph: {
-    title: "Search Inside Scanned PDF — Find Text in Scanned Documents",
+    title: "Search Inside Scanned PDF — Built-in OCR, In Your Browser",
     description:
-      "How to search text in scanned PDF files. Free tool for text-layer PDFs, plus guidance on OCR for image PDFs.",
+      "Scanned, image-only PDFs are read with OCR right in your browser. No upload, no account.",
     url: "https://www.pdfsearch.info/search-scanned-pdf",
   },
 };
@@ -35,15 +35,15 @@ const faqSchema = {
       name: "Can you search text in a scanned PDF?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "You can search a scanned PDF only if it has an embedded text layer (added by OCR software). PDFSearch works with any PDF that has searchable text, including scanned PDFs saved with OCR. Purely image-based scanned PDFs without a text layer cannot be searched by any text search tool without first running OCR.",
+        text: "Yes. PDFSearch checks whether a PDF has a text layer, and when it doesn't, it reads the scanned pages with OCR (optical character recognition) directly in your browser — the file is never uploaded. Scans that already have an OCR text layer are searched instantly, with no OCR step needed.",
       },
     },
     {
       "@type": "Question",
-      name: "How do I make a scanned PDF searchable?",
+      name: "Do I need to run OCR before searching a scanned PDF?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "To make a scanned PDF searchable, run it through OCR (Optical Character Recognition) software. Options include Adobe Acrobat, Google Drive (upload the PDF and open with Google Docs), or free tools like OCRmyPDF. Once OCR is applied, the PDF will have a text layer that PDFSearch can search.",
+        text: "No. PDFSearch runs OCR for you when it detects a scanned page. Documents of about five pages or fewer are read automatically; longer ones show progress with a cancel option. OCR requires a desktop browser with enough available memory, and there is a per-search page limit to keep things responsive.",
       },
     },
   ],
@@ -53,73 +53,79 @@ export default function SearchScannedPdfPage() {
   return (
     <LandingPageShell
       headline="Search Inside Scanned PDFs"
-      subheadline="Understand when PDF search works with scanned documents — and how to make any scanned PDF fully searchable."
-      description="Many PDFs are created by scanning physical documents. Whether you can search a scanned PDF depends on whether it has an embedded text layer. PDFSearch works instantly with any PDF that has searchable text — including OCR-processed scanned documents."
+      subheadline="Image-only scans have no text to find — so PDFSearch reads them with OCR, right in your browser."
+      description="Many PDFs are photographs of pages, with no text layer to search. PDFSearch detects that automatically and runs OCR (optical character recognition) on the scanned pages locally — your file is never uploaded. Scans that already carry an OCR text layer are searched instantly, with no extra step."
       benefits={[
-        "Works with OCR-processed PDFs",
-        "Supports text-layer scans",
-        "Guides for image-only PDFs",
+        "Built-in OCR for image-only scans",
+        "Runs in your browser — no upload",
+        "Instant on scans that already have text",
         "Free & instant — no account",
       ]}
       howToSteps={[
         {
-          title: "Check if your scanned PDF has a text layer",
-          desc: "Try opening your PDF in a browser and pressing Ctrl+F. If you can select text or Ctrl+F finds results, the PDF has a text layer and PDFSearch will work perfectly.",
+          title: "Load your scanned PDF",
+          desc: "Drag the file in or paste a URL. Nothing is uploaded — the PDF is opened and processed entirely inside your browser.",
         },
         {
-          title: "If text-selectable: search with PDFSearch",
-          desc: "Upload your scanned PDF to PDFSearch and search as normal. PDFSearch extracts the text layer and searches it instantly, even for multi-page scanned documents.",
+          title: "Search as normal",
+          desc: "Type the word or phrase you're looking for. PDFSearch checks each page for a usable text layer as it goes.",
         },
         {
-          title: "If image-only: run OCR first",
-          desc: "Upload your scanned PDF to Google Drive and open it with Google Docs — this applies free OCR. Or use Adobe Acrobat’s ’Make Searchable’ feature. Then download the resulting PDF with text layer.",
+          title: "Scanned pages are read with OCR automatically",
+          desc: "When a page turns out to be an image with no text, PDFSearch reads it with OCR. Short documents happen in the background; longer ones show a progress bar you can cancel.",
         },
         {
-          title: "Search the OCR-processed PDF",
-          desc: "Once your scanned PDF has a text layer, upload it to PDFSearch and search normally. Results include page numbers and highlighted context.",
+          title: "Read the results",
+          desc: "Matches appear with page numbers and highlighted context. Anything found by OCR is badged, so you know which text came from recognition rather than an embedded layer.",
         },
       ]}
       faqItems={[
         {
-          question: "Why can't I search my scanned PDF?",
+          question: "Can I search a scanned PDF that has no text layer?",
           answer:
-            "If your scanned PDF is an image file (no text layer), PDFSearch and other text search tools won't find any text. You need to first run OCR (Optical Character Recognition) to add a searchable text layer.",
+            "Yes. PDFSearch detects that the page is an image and reads it with OCR in your browser. You don't need to prepare the file or run anything beforehand.",
         },
         {
-          question: "How do I know if my PDF is searchable or just an image?",
+          question: "Is my scanned PDF uploaded anywhere for OCR?",
           answer:
-            "Open your PDF in a browser or PDF reader. If you can click to select text, or if Ctrl+F finds results, it has a text layer. If you can't select any text, it's image-only.",
+            "No. OCR runs entirely inside your browser using WebAssembly. The recognition engine and language data are served from this site as static files, and your PDF's bytes never leave your device — not even to our own servers.",
         },
         {
-          question: "What is OCR and why do I need it for scanned PDFs?",
+          question: "How long does OCR take?",
           answer:
-            "OCR (Optical Character Recognition) is technology that converts images of text into actual machine-readable text. Scanned documents are photos of pages — OCR reads those images and creates a text layer so search tools can find content.",
+            "Roughly a second or two per page once the engine has loaded, plus a one-time download of the recognition engine on your first scanned PDF. Documents of about five pages or fewer are read silently in the background; longer ones show a progress bar with a cancel button.",
         },
         {
-          question: "Can PDFSearch search scanned PDFs with OCR text layers?",
+          question: "Are there limits on OCR?",
           answer:
-            "Yes. If your scanned PDF has been OCR-processed and has a text layer, PDFSearch will search it perfectly — the same as any other PDF.",
+            "Yes, and they're deliberate. OCR is capped per file and per search so a large batch can't lock up your tab, and it's skipped on phones and tablets and on devices reporting little memory — the engine needs more headroom than those can safely give. When OCR is skipped, PDFSearch tells you why instead of just returning nothing.",
         },
         {
-          question: "What is the best free OCR tool for scanned PDFs?",
+          question: "How accurate is the OCR?",
           answer:
-            "Google Drive's built-in OCR (upload PDF → open with Google Docs) is free and works well for most documents. OCRmyPDF is a free command-line tool for batch processing. Adobe Acrobat has a paid 'Make Searchable PDF' feature with higher accuracy.",
+            "On a clean, straight scan of printed text it's very good — typically well above 90% confidence, which PDFSearch reports per file. Faint print, handwriting, unusual fonts, skewed pages and heavy background noise all reduce accuracy, so a scan can occasionally miss a word that a real text layer would have matched.",
+        },
+        {
+          question: "How do I know if a match came from OCR?",
+          answer:
+            "Results from a scanned file are badged \"OCR\" and the file's summary line says how many pages were read that way, so you can judge how much to trust a given match.",
         },
       ]}
       breadcrumbLabel="Search Scanned PDFs"
       trustSignals={[
-        { title: "Honest about limits", desc: "Image-only scans can’t be text-searched — we say so" },
-        { title: "Instant text-layer check", desc: "Load a scan and know in seconds if it’s searchable" },
-        { title: "Works on OCR’d files", desc: "Scans processed with OCR search like any other PDF" },
+        { title: "OCR runs locally", desc: "Scanned pages are read in your browser — no upload" },
+        { title: "Automatic text-layer check", desc: "Every page is checked; scans are read with OCR" },
+        { title: "Honest about accuracy", desc: "OCR matches are badged, with confidence reported" },
       ]}
       useCaseSection={
         <section aria-labelledby="lp-usecase-heading">
           <h2 id="lp-usecase-heading" className="font-mono text-2xl font-semibold text-[var(--text)] mb-4">
-            The text-layer test: why some scans search and others don’t
+            The text-layer test, and what happens when a scan fails it
           </h2>
           <div className="font-sans text-sm text-[var(--text-2)] leading-relaxed space-y-4 max-w-3xl">
-            <p>A scanned PDF is a photograph of a page. Whether you can search it depends on one thing: has OCR (optical character recognition) ever been run on it? If yes, an invisible text layer sits behind the image and search works normally. If no, there is literally no text in the file to find — no tool can keyword-search pure pixels, whatever its marketing says.</p>
-            <p>The fastest test: load the file into PDFSearch and search for a word you can see on the page. A match means you have a text layer; zero matches on a visible word means you need OCR first (most scanner apps and many free tools can add it). Once OCR’d, everything on this site applies — <Link href="/how-to-search-pdf" className="text-[var(--accent)] hover:underline">the basics</Link>, <Link href="/bulk-pdf-search" className="text-[var(--accent)] hover:underline">bulk workflows</Link>, all of it. Government-record archives are the classic case of mixed scanned/native files — see <Link href="/search-government-documents" className="text-[var(--accent)] hover:underline">searching government documents</Link>.</p>
+            <p>A scanned PDF is a photograph of a page. Whether it can be searched directly depends on one thing: has OCR (optical character recognition) ever been run on it? If yes, an invisible text layer sits behind the image and search works normally. If no, there is no text in the file at all — pure pixels, and nothing to match a keyword against.</p>
+            <p>PDFSearch checks every page for that text layer as it searches, and counts a page as textless when it holds almost nothing — a scanner stamp like &ldquo;Scanned by CamScanner&rdquo; or a bare page number doesn&rsquo;t count as searchable text. Pages that fail the test are rendered to an image and read with OCR in your browser. That covers the awkward middle case too: a filing with a digitally generated cover sheet and thirty scanned pages behind it gets the text layer used where it exists and OCR only where it&rsquo;s needed.</p>
+            <p>Two honest caveats. OCR needs real memory and CPU, so it&rsquo;s skipped on phones and tablets — and when it&rsquo;s skipped, you&rsquo;re told why rather than left with an empty result. And recognition is never perfect: a clean printed scan reads reliably, but faint or skewed pages can drop a word. Everything else on this site applies once the text exists — <Link href="/how-to-search-pdf" className="text-[var(--accent)] hover:underline">the basics</Link>, <Link href="/bulk-pdf-search" className="text-[var(--accent)] hover:underline">bulk workflows</Link>, all of it. Government-record archives are the classic case of mixed scanned/native files — see <Link href="/search-government-documents" className="text-[var(--accent)] hover:underline">searching government documents</Link>.</p>
           </div>
         </section>
       }
