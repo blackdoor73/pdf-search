@@ -28,6 +28,8 @@ import {
   type OcrDecision,
 } from "./ocrLimits";
 import { readDeviceCapability } from "@/lib/upload/limits";
+import type { CachedDoc } from "./textCache";
+import { estimateDocBytes } from "./textCache";
 
 // ─── pdf.js initialization ────────────────────────────────────────────────────
 
@@ -101,7 +103,7 @@ export async function getPdfInfo(
 
 // ─── Text extraction ──────────────────────────────────────────────────────────
 
-interface ExtractedPage {
+export interface ExtractedPage {
   pageNum: number;
   lines: string[];
   /**
@@ -121,7 +123,7 @@ interface ExtractedPage {
  * Returns pages with their text lines for efficient search; optionally also
  * reads the embedded document info while the document is open.
  */
-async function extractPdfText(
+export async function extractPdfText(
   buffer: ArrayBuffer,
   collectMeta = false
 ): Promise<{ pages: ExtractedPage[]; meta?: PdfDocMeta }> {
@@ -301,6 +303,12 @@ export interface SearchOrchestrationOptions extends SearchOptions {
   unregisterOcrCancel?: (fileId: string) => void;
   /** Reports the text-layer verdict per file, for telemetry. */
   onTextLayer?: (file: PdfFile, info: TextLayerReport) => void;
+  /** Caller-injected memo of extracted text. Engine keeps no module state and
+   *  stays unit-testable. A complete hit skips loadPdfBuffer, pdf.js, and OCR. */
+  textCache?: {
+    get(file: PdfFile): CachedDoc | undefined;
+    set(file: PdfFile, doc: CachedDoc): void;
+  };
 }
 
 /** What the text-layer heuristic concluded about one file. */
@@ -310,6 +318,22 @@ export interface TextLayerReport {
   textlessPages: number[];
   /** The OCR gate's decision, so callers can report why it was skipped. */
   decision: OcrDecision;
+}
+
+/** Classify an already-extracted document's text layer. Shared by the search
+ *  path and the prefetch path so the two cannot drift. */
+export function judgeTextLayer(pages: ExtractedPage[]): {
+  verdict: ReturnType<typeof classifyTextLayer>;
+  textlessPages: number[];
+} {
+  const textlessPages = pages
+    .filter((p) => pageIsTextless(p.textChars))
+    .map((p) => p.pageNum);
+  const verdict = classifyTextLayer({
+    totalPages: pages.length,
+    textlessPages: textlessPages.length,
+  });
+  return { verdict, textlessPages };
 }
 
 /**
@@ -355,6 +379,44 @@ export async function searchAllPdfs(
       const wantMeta = Boolean(
         options.onMeta && options.collectMeta?.(file)
       );
+
+      // ── Cache hit — skip loadPdfBuffer, pdf.js, and OCR entirely ────
+      const cached = !wantMeta ? options.textCache?.get(file) : undefined;
+      if (cached && cached.complete) {
+        const pages = cached.pages;
+        pageCount = pages.length;
+        const matches = searchPages(pages, query, options);
+        const durationMs = Math.round(performance.now() - startMs);
+
+        try {
+          options.onTextLayer?.(file, {
+            verdict: cached.verdict,
+            totalPages: pages.length,
+            textlessPages: cached.textlessPages,
+            decision: { run: false, reason: "no-need" },
+          });
+        } catch { /* reporting must never break search */ }
+
+        return {
+          fileId: file.id,
+          fileName: file.name,
+          sourceType: file.type,
+          sourceUrl: file.type === "url" ? (file.source as string) : undefined,
+          matches,
+          matchedPages: Array.from(new Set(matches.map((m) => m.page))),
+          totalPages: pages.length,
+          searchDurationMs: durationMs,
+          textLayer: cached.verdict,
+          textlessPages: cached.textlessPages.length > 0 ? cached.textlessPages : undefined,
+          ocrPages: cached.ocrPages.length > 0 ? cached.ocrPages : undefined,
+          sampleText: pages
+            .find((p) => p.lines.length > 0)
+            ?.lines.join("\n")
+            .slice(0, 600),
+        };
+      }
+
+      // ── Cold path — full extraction ──────────────────────────────────
       const buffer = await loadPdfBuffer(file);
       const sizeBytes = buffer.byteLength;
       // Hash before extraction — pdf.js transfers (detaches) the buffer.
@@ -377,13 +439,7 @@ export async function searchAllPdfs(
       pageCount = pages.length;
 
       // ── Text-layer verdict ────────────────────────────────────────────
-      const textlessPages = pages
-        .filter((p) => pageIsTextless(p.textChars))
-        .map((p) => p.pageNum);
-      const verdict = classifyTextLayer({
-        totalPages: pages.length,
-        textlessPages: textlessPages.length,
-      });
+      const { verdict, textlessPages } = judgeTextLayer(pages);
 
       let decision: OcrDecision = { run: false, reason: "no-need" };
       if (verdict !== "text") {
@@ -503,6 +559,26 @@ export async function searchAllPdfs(
           ocrPages?.length ?? 0
         );
       }
+
+      // ── Store to cache ─────────────────────────────────────────────
+      try {
+        options.textCache?.set(file, {
+          pages: pages.map((p) => ({
+            pageNum: p.pageNum,
+            lines: p.lines,
+            textChars: p.textChars,
+            fromOcr: p.fromOcr,
+          })),
+          verdict,
+          textlessPages,
+          ocrPages: ocrPages ? [...ocrPages] : [],
+          complete:
+            verdict === "text" ||
+            textlessPages.every((p) => ocrPages?.includes(p)),
+          bytes: estimateDocBytes(pages),
+          storedAt: Date.now(),
+        });
+      } catch { /* cache store must never break search */ }
 
       const matches = searchPages(pages, query, options);
       const durationMs = Math.round(performance.now() - startMs);
