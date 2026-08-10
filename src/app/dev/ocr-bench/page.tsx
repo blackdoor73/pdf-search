@@ -18,6 +18,7 @@ import { notFound } from "next/navigation";
 import { searchAllPdfs } from "@/lib/pdf/engine";
 import { makeScannedPdf, makeTextPdf } from "@/lib/pdf/devFixtures";
 import { computeConcurrency } from "@/lib/upload/limits";
+import { createPageTextCache, cacheKeyFor, estimateDocBytes } from "@/lib/pdf/textCache";
 import type { PdfFile, SearchResult } from "@/types";
 
 interface Scenario {
@@ -51,6 +52,11 @@ const SCENARIOS: Scenario[] = [
   {
     name: "D · 20 text-layer files (control)",
     note: "MUST stay fast. Regression guard for the non-OCR path.",
+    build: async () => Promise.all(Array.from({ length: 20 }, () => makeTextPdf(3))),
+  },
+  {
+    name: "E · D repeated (warm cache)",
+    note: "Second search with text cache. Should be ≪100ms.",
     build: async () => Promise.all(Array.from({ length: 20 }, () => makeTextPdf(3))),
   },
 ];
@@ -98,19 +104,35 @@ export default function OcrBenchPage() {
       status: "ready",
     }));
     const totalBytes = files.reduce((n, f) => n + f.byteSize, 0);
+    const isRepeat = s.name.includes("warm cache");
     say(
       `running: ${files.length} files, ${(totalBytes / 1024 / 1024).toFixed(1)}MB, ` +
-        `concurrency=${computeConcurrency(totalBytes, files.length)}`
+        `concurrency=${computeConcurrency(totalBytes, files.length)}` +
+        (isRepeat ? " (cache warm-up + measured run)" : "")
     );
 
-    const t0 = performance.now();
-    const results: SearchResult[] = await searchAllPdfs(files, "invoice", {
+    const cache = createPageTextCache();
+    const textCache = {
+      get: (f: PdfFile) => cache.get(cacheKeyFor(f)),
+      set: (f: PdfFile, d: Parameters<typeof cache.set>[1]) => cache.set(cacheKeyFor(f), d),
+    };
+    const searchOpts = {
       caseSensitive: false,
       wholeWord: false,
       showContext: true,
       concurrency: computeConcurrency(totalBytes, files.length),
       ocr: true,
-    });
+      textCache,
+    };
+
+    if (isRepeat) {
+      say("  warm-up pass…");
+      await searchAllPdfs(files, "invoice", searchOpts);
+      say(`  cache size: ${Math.round(cache.size() / 1024)}KB`);
+    }
+
+    const t0 = performance.now();
+    const results: SearchResult[] = await searchAllPdfs(files, "invoice", searchOpts);
     const wallMs = Math.round(performance.now() - t0);
 
     const ocr = results.filter((r) => r.ocrPages?.length);

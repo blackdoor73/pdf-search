@@ -40,6 +40,8 @@ import {
   LIMIT_CEILING,
 } from "@/lib/upload/limits";
 import { releaseOcrIfLive } from "@/lib/pdf/ocrTeardown";
+import { getPageTextCache, cacheKeyFor } from "@/lib/pdf/textCache";
+import { useTextPrefetch } from "@/hooks/useTextPrefetch";
 import { formatBytes } from "@/lib/utils";
 export { formatBytes };
 
@@ -160,6 +162,9 @@ export function useSearchEngine() {
   // Cancellation controller
   const abortController = useRef<AbortController | null>(null);
 
+  // Background text-layer extraction — starts at upload, yields to search.
+  const prefetch = useTextPrefetch();
+
   // ── File management ──────────────────────────────────────────────────────
 
   const addFiles = useCallback(
@@ -264,6 +269,11 @@ export function useSearchEngine() {
         // file content). Runs in the background so it can't block the UI.
         reportFileMeta(toAdd, reportedMetaIds.current);
 
+        // Kick off background text-layer extraction so the first search is
+        // faster — text-layer files become instant cache hits, scanned files
+        // get their verdict cached (complete: false) so search knows to OCR.
+        prefetch.enqueue(toAdd);
+
         // Persist to history (filenames only, no content)
         const repo = getUserRepository();
         const sessionId = getOrCreateSessionId();
@@ -279,7 +289,7 @@ export function useSearchEngine() {
 
       return { added: toAdd.length, skipped, warnings };
     },
-    [files, totalSizeBytes]
+    [files, totalSizeBytes, prefetch]
   );
 
   const addUrls = useCallback(
@@ -356,14 +366,27 @@ export function useSearchEngine() {
   );
 
   const removeFile = useCallback((id: string) => {
+    // Capture file info for cleanup outside the updater (React may invoke
+    // updaters twice in StrictMode; keep side effects out).
+    let removedFile: PdfFile | undefined;
     setFiles((prev) => {
-      const removed = prev.find((f) => f.id === id);
-      if (removed?.byteSize) {
-        setTotalSizeBytes((s) => Math.max(0, s - removed.byteSize));
+      removedFile = prev.find((f) => f.id === id);
+      if (!removedFile) return prev;
+      if (removedFile.byteSize) {
+        setTotalSizeBytes((s) => Math.max(0, s - removedFile!.byteSize));
       }
       return prev.filter((f) => f.id !== id);
     });
-  }, []);
+    if (removedFile) {
+      // Clean up refs that addFiles populated — without this, removing then
+      // re-adding the same file was rejected as "(duplicate content)".
+      if (removedFile.contentHash) contentHashes.current.delete(removedFile.contentHash);
+      reportedMetaIds.current.delete(id);
+      clearOcrProgressFor(id);
+      getPageTextCache().delete(cacheKeyFor(removedFile));
+      prefetch.drop(id);
+    }
+  }, [clearOcrProgressFor, prefetch]);
 
   const clearFiles = useCallback(() => {
     setFiles([]);
@@ -373,10 +396,10 @@ export function useSearchEngine() {
     setSearchState(INITIAL_SEARCH_STATE);
     setProgress(null);
     setOcrProgress({});
-    // Release the OCR worker and the tesseract engine's ~50MB with it. No-op,
-    // and no chunk fetched, when OCR never ran.
+    getPageTextCache().clear();
+    prefetch.reset();
     releaseOcrIfLive();
-  }, []);
+  }, [prefetch]);
 
   // ── Search ───────────────────────────────────────────────────────────────
 
@@ -384,6 +407,10 @@ export function useSearchEngine() {
     async (query: string) => {
       if (!query.trim() || files.length === 0) return;
       if (searchState.status === "running") return;
+
+      // Pause background prefetch so the interactive search gets full
+      // throughput — the prefetch queue resumes in `finally` below.
+      prefetch.yieldToSearch();
 
       // Cancel any in-flight search
       abortController.current?.abort();
@@ -406,9 +433,14 @@ export function useSearchEngine() {
       setProgress({ total: files.length, completed: 0, currentFile: "", percentage: 0 });
 
       try {
+        const cache = getPageTextCache();
         const results = await searchAllPdfs(files, safeQuery, {
           ...searchOptions,
           ocr: true,
+          textCache: {
+            get: (f) => cache.get(cacheKeyFor(f)),
+            set: (f, d) => cache.set(cacheKeyFor(f), d),
+          },
           onOcrProgress: upsertOcrProgress,
           onOcrDone: clearOcrProgressFor,
           registerOcrCancel,
@@ -541,6 +573,7 @@ export function useSearchEngine() {
       } finally {
         setProgress(null);
         setOcrProgress({});
+        prefetch.resume();
       }
     },
     [
@@ -549,6 +582,7 @@ export function useSearchEngine() {
       searchState.status,
       searchState.startedAt,
       totalSizeBytes,
+      prefetch,
     ]
   );
 
@@ -560,7 +594,8 @@ export function useSearchEngine() {
     // A user-initiated cancel should stop OCR immediately rather than waiting
     // for the worker to finish the page it is on.
     releaseOcrIfLive();
-  }, []);
+    prefetch.resume();
+  }, [prefetch]);
 
   const clearResults = useCallback(() => {
     setSearchState(INITIAL_SEARCH_STATE);
