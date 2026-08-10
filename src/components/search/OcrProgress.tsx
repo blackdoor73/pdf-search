@@ -73,3 +73,54 @@ export function OcrProgress({ progress, onCancel }: OcrProgressProps) {
     </div>
   );
 }
+
+/** Rows shown before collapsing the rest into a "+N more" line. */
+const MAX_ROWS = 3;
+
+/**
+ * All files currently being read, one row each.
+ *
+ * Capped so a batch of scanned files cannot push the results section below the
+ * fold — the point is reassurance that work is happening, not a full manifest.
+ */
+export function OcrProgressList({
+  items,
+  onCancelFile,
+  onCancelAll,
+}: {
+  items: OcrProgressType[];
+  onCancelFile?: (fileId: string) => void;
+  onCancelAll?: () => void;
+}) {
+  if (items.length === 0) return null;
+  const shown = items.slice(0, MAX_ROWS);
+  const hidden = items.length - shown.length;
+
+  return (
+    <div className="space-y-3">
+      {shown.map((p) => (
+        <OcrProgress
+          key={p.fileId}
+          progress={p}
+          onCancel={onCancelFile ? () => onCancelFile(p.fileId) : undefined}
+        />
+      ))}
+      {hidden > 0 && (
+        <div className="flex items-center justify-between gap-4">
+          <span className="font-mono text-[10px] text-[var(--text-3)]">
+            + {hidden} more file{hidden > 1 ? "s" : ""} being read
+          </span>
+          {onCancelAll && (
+            <button
+              type="button"
+              onClick={onCancelAll}
+              className="font-mono text-[10px] text-[var(--text-3)] underline decoration-dotted underline-offset-4 hover:text-[var(--accent)] transition-colors"
+            >
+              Cancel all
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

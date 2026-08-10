@@ -142,11 +142,69 @@ export const OCR_MAX_PAGES_PER_SEARCH = 100;
  */
 export const OCR_SILENT_PAGE_MAX = 5;
 
+/**
+ * Pages to return to the search-wide allowance after a run.
+ *
+ * The allowance is claimed at decision time, because two files whose decisions
+ * land before either finishes must not each believe the whole allowance is
+ * theirs. But a run that fails, is cancelled, or is truncated spends less than
+ * it claimed, and without a refund that difference is lost for the rest of the
+ * search — later scanned files then get `reason: "budget"` and silently return
+ * zero matches.
+ *
+ * Clamped at 0 so a bookkeeping slip can never *grow* the allowance.
+ */
+export function refundBudget(claimed: number, spent: number): number {
+  if (!Number.isFinite(claimed) || !Number.isFinite(spent)) return 0;
+  return Math.max(0, claimed - Math.max(0, spent));
+}
+
 /** Minimum reported RAM (GB) to attempt OCR. */
 export const OCR_MIN_DEVICE_MEMORY = 4;
 
 /** How long the warm tesseract engine lingers before being reclaimed. */
 export const OCR_IDLE_TERMINATE_MS = 30_000;
+
+/**
+ * Upper bound on parallel recognizers.
+ *
+ * Measurement says recognition is ~95% of OCR cost, and tesseract has no
+ * threaded WASM build, so the only way to speed it up is more workers — each an
+ * independent OS worker with its own ~50MB WASM instance.
+ *
+ * Capped at 3, not higher: 3 x 50MB plus pdf.js plus up to `concurrency` PDF
+ * buffers is already the memory budget upload/limits.ts exists to protect,
+ * rasterization needs a core of its own, and returns flatten past 3 on the 4-8
+ * core machines most visitors have.
+ */
+export const OCR_MAX_POOL = 3;
+
+/**
+ * How many tesseract workers to run.
+ *
+ * Half the reported cores, so rasterization and the rest of the browser keep
+ * one. Unknown `hardwareConcurrency` (some Safari/Firefox versions) assumes 4 →
+ * 2 workers, matching the deliberate run-on-unknown stance in decideOcr rather
+ * than degrading to serial. Devices reporting <=4GB stay at 2 regardless, since
+ * each worker is another 50MB.
+ */
+export function computeOcrPoolSize(cap: DeviceCapability = {}): number {
+  const cores =
+    typeof cap.hardwareConcurrency === "number" &&
+    Number.isFinite(cap.hardwareConcurrency) &&
+    cap.hardwareConcurrency > 0
+      ? cap.hardwareConcurrency
+      : 4;
+  let size = Math.max(1, Math.min(OCR_MAX_POOL, Math.floor(cores / 2)));
+  if (
+    typeof cap.deviceMemory === "number" &&
+    Number.isFinite(cap.deviceMemory) &&
+    cap.deviceMemory <= 4
+  ) {
+    size = Math.min(size, 2);
+  }
+  return size;
+}
 
 export type OcrSkipReason =
   | "no-need"

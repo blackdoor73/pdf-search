@@ -1,37 +1,58 @@
 /**
- * Global OCR serialization.
+ * Admission control for OCR jobs.
  *
- * File parsing runs up to `computeConcurrency()` files in parallel, which is
- * right for I/O-bound pdf.js work. OCR is CPU-bound and single-threaded (no
- * COOP/COEP means no SharedArrayBuffer), so two concurrent runs would mean two
- * WASM instances (~100MB) and two canvases fighting over the same cores — each
- * run more than 2x slower than serial, for double the memory.
+ * Was a strict FIFO of one job at a time, on the reasoning that two concurrent
+ * recognizers would fight over one core. Measurement changed that: recognition
+ * is ~95% of OCR cost and tesseract has no threaded build, so the fix is more
+ * recognizers, not fewer. The worker now runs a pool of them.
  *
- * Serializing here rather than lowering file concurrency keeps the fast
- * text-layer files parallel: four text files parse happily while a fifth waits
- * at this gate. The gate only pinches when two files are both scanned, which is
- * exactly the case worth pinching.
- *
- * It also makes progress representable: because exactly one OCR job runs at a
- * time, OcrProgress can be a single object rather than a map.
+ * This still exists because unbounded admission would be worse than either:
+ * every scanned file in a batch would open its own pdf.js document and hold its
+ * own decoded page bitmap while waiting for a free recognizer. So jobs are
+ * admitted up to a limit, and the pool keeps itself busy from there.
  */
 
-let chain: Promise<unknown> = Promise.resolve();
+/** Concurrently admitted OCR jobs. One spare beyond the default pool of 2. */
+export const OCR_JOB_LIMIT = 3;
 
-/** Runs `job` after every previously enqueued job has settled. */
-export function enqueueOcr<T>(job: () => Promise<T>): Promise<T> {
-  // `.then(job, job)` on both paths: a rejected predecessor must not skip or
-  // poison its successors.
-  const next = chain.then(job, job);
-  // Keep the chain itself always-fulfilled so one failure can't stall the queue.
-  chain = next.then(
-    () => undefined,
-    () => undefined
-  );
-  return next;
+let active = 0;
+const waiting: Array<() => void> = [];
+
+function release(): void {
+  active--;
+  // Wake exactly one waiter, preserving arrival order.
+  const next = waiting.shift();
+  if (next) next();
 }
 
-/** Test seam — drops any queued continuation state. */
+/**
+ * Runs `job` once a slot is free.
+ *
+ * Slots are released in a `finally`, so a rejected job cannot leak one and
+ * slowly starve the queue. The returned promise still rejects — callers see the
+ * real failure.
+ */
+export function enqueueOcr<T>(job: () => Promise<T>): Promise<T> {
+  const start = async (): Promise<T> => {
+    active++;
+    try {
+      return await job();
+    } finally {
+      release();
+    }
+  };
+
+  if (active < OCR_JOB_LIMIT) return start();
+  return new Promise<void>((resolve) => waiting.push(resolve)).then(start);
+}
+
+/** Jobs running right now — for tests and diagnostics. */
+export function ocrActiveCount(): number {
+  return active;
+}
+
+/** Test seam — drops any queued waiters and resets the counter. */
 export function resetOcrQueue(): void {
-  chain = Promise.resolve();
+  active = 0;
+  waiting.length = 0;
 }

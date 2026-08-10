@@ -75,6 +75,24 @@ export interface SearchResult {
   /** Wall-clock ms spent on OCR for this file. */
   ocrMs?: number;
   /**
+   * Per-stage OCR cost, for diagnosing where the time actually goes.
+   *
+   * `queueWaitMs` is the one that was previously invisible: `ocrMs` starts when
+   * execution starts, so time spent waiting behind another file's OCR never
+   * appeared anywhere.
+   */
+  ocrPerf?: {
+    queueWaitMs?: number;
+    renderMs?: number;
+    encodeMs?: number;
+    recognizeMs?: number;
+    warmMs?: number;
+    bytesPerPage?: number;
+    /** Max concurrent recognitions observed, and the pool behind it. */
+    peakRecognizing?: number;
+    poolWorkers?: number;
+  };
+  /**
    * Short excerpt of extracted text (first page that has any), kept in memory
    * for the opt-in issue-report diagnostics. Never sent anywhere unless the
    * visitor explicitly includes it in a report.
@@ -178,17 +196,26 @@ export interface SearchProgress {
  * than redefine that unit (which SearchProgress.tsx renders literally), OCR
  * reports separately and the UI shows both — "2 / 5 files" above, "reading
  * scanned page 12 / 40" below. Two truthful statements beat one blended one.
- *
- * A single object rather than a map, because OCR is serialized to one file at a
- * time (see lib/pdf/ocrQueue).
  */
 export interface OcrProgress {
+  /** Keyed on id, not name: two loaded files can share a filename. */
+  fileId: string;
   fileName: string;
   pagesDone: number;
   pagesTotal: number;
   /** "warming" while the engine loads (no page progress yet), then "reading". */
   phase: "warming" | "reading";
 }
+
+/**
+ * Live OCR progress for every file currently being read, keyed by file id.
+ *
+ * Was a single nullable object, on the assumption that OCR ran one file at a
+ * time. Once several files can OCR concurrently that breaks visibly: each file
+ * cleared progress on completion, so whichever finished first blanked the panel
+ * of every file still working.
+ */
+export type OcrProgressMap = Record<string, OcrProgress>;
 
 // ─── Migration Interface (Future MongoDB) ────────────────────────────────────
 // When migrating from cookie-based to MongoDB persistence:

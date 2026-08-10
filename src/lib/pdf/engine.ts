@@ -23,6 +23,7 @@ import {
   decideOcr,
   ocrSupported,
   pageIsTextless,
+  refundBudget,
   OCR_MAX_PAGES_PER_SEARCH,
   type OcrDecision,
 } from "./ocrLimits";
@@ -291,8 +292,13 @@ export interface SearchOrchestrationOptions extends SearchOptions {
    * pass can ship — and be measured — before the OCR pass is enabled.
    */
   ocr?: boolean;
-  /** Fires only for non-silent (large) OCR runs; null clears the panel. */
-  onOcrProgress?: (progress: OcrProgress | null) => void;
+  /** Fires only for non-silent (large) OCR runs, once per progress update. */
+  onOcrProgress?: (progress: OcrProgress) => void;
+  /** This file's OCR finished — drop its progress row. */
+  onOcrDone?: (fileId: string) => void;
+  /** Offers a per-file OCR cancel, so one slow scan can be dropped alone. */
+  registerOcrCancel?: (fileId: string, cancel: () => void) => void;
+  unregisterOcrCancel?: (fileId: string) => void;
   /** Reports the text-layer verdict per file, for telemetry. */
   onTextLayer?: (file: PdfFile, info: TextLayerReport) => void;
 }
@@ -317,7 +323,6 @@ export async function searchAllPdfs(
   options: SearchOrchestrationOptions
 ): Promise<SearchResult[]> {
   const { concurrency = 5, onProgress, signal } = options;
-  const results: SearchResult[] = [];
   let completed = 0;
 
   // Search-wide OCR page allowance, spent as files claim it. Held here rather
@@ -325,210 +330,276 @@ export async function searchAllPdfs(
   // an all-text search never imports the OCR chunk at all.
   const ocrBudget = { left: OCR_MAX_PAGES_PER_SEARCH };
 
-  // Process files in chunks of `concurrency`
-  for (let i = 0; i < files.length; i += concurrency) {
-    if (signal?.aborted) break;
+  // Read once, not per file: capability cannot change mid-search, and this
+  // allocates plus runs a UA regex on every call.
+  const deviceCap = readDeviceCapability();
+  const canOcr = ocrSupported();
 
-    const chunk = files.slice(i, i + concurrency);
-    const chunkResults = await Promise.allSettled(
-      chunk.map(async (file) => {
-        if (signal?.aborted) return null;
+  const processFile = async (file: PdfFile): Promise<SearchResult | null> => {
+    if (signal?.aborted) return null;
 
-        onProgress?.({
-          total: files.length,
-          completed,
-          currentFile: file.name,
-          percentage: Math.round((completed / files.length) * 100),
+    onProgress?.({
+      total: files.length,
+      completed,
+      currentFile: file.name,
+      percentage: Math.round((completed / files.length) * 100),
+    });
+
+    const startMs = performance.now();
+
+    // Page count survives a mid-extraction failure so the catch below can
+    // still report it (it used to always return 0).
+    let pageCount = 0;
+
+    try {
+      const wantMeta = Boolean(
+        options.onMeta && options.collectMeta?.(file)
+      );
+      const buffer = await loadPdfBuffer(file);
+      const sizeBytes = buffer.byteLength;
+      // Hash before extraction — pdf.js transfers (detaches) the buffer.
+      const sha = wantMeta ? await sha256Hex(buffer) : null;
+
+      // A second copy of the bytes for a possible OCR pass, taken BEFORE
+      // getDocument detaches the buffer. For local files we re-read the
+      // File handle instead, so the common case costs no extra memory —
+      // peak usage is already concurrency x file size (see limits.ts).
+      const ocrBytes: (() => Promise<ArrayBuffer>) | null = !options.ocr
+        ? null
+        : file.type === "file"
+          ? () => (file.source as File).arrayBuffer()
+          : (() => {
+              const copy = buffer.slice(0);
+              return async () => copy;
+            })();
+
+      const { pages, meta } = await extractPdfText(buffer, wantMeta);
+      pageCount = pages.length;
+
+      // ── Text-layer verdict ────────────────────────────────────────────
+      const textlessPages = pages
+        .filter((p) => pageIsTextless(p.textChars))
+        .map((p) => p.pageNum);
+      const verdict = classifyTextLayer({
+        totalPages: pages.length,
+        textlessPages: textlessPages.length,
+      });
+
+      let decision: OcrDecision = { run: false, reason: "no-need" };
+      if (verdict !== "text") {
+        decision = decideOcr(
+          verdict,
+          textlessPages,
+          deviceCap,
+          canOcr,
+          options.ocr ? ocrBudget.left : 0
+        );
+        // Claim the pages now: two files whose decisions land before either
+        // finishes must not each believe the whole allowance is theirs.
+        if (decision.run) ocrBudget.left -= decision.pages.length;
+      }
+
+      try {
+        options.onTextLayer?.(file, {
+          verdict,
+          totalPages: pages.length,
+          textlessPages,
+          decision,
         });
+      } catch {
+        // Reporting must never break search.
+      }
 
-        const startMs = performance.now();
+      // ── OCR pass ──────────────────────────────────────────────────────
+      // Strictly additive: any failure leaves the text-layer result intact.
+      let ocrPages: number[] | undefined;
+      let ocrSkipped: SearchResult["ocrSkipped"];
+      let ocrConfidence: number | undefined;
+      let ocrMs: number | undefined;
+      let ocrPerf: SearchResult["ocrPerf"];
 
-        // Page count survives a mid-extraction failure so the catch below can
-        // still report it (it used to always return 0).
-        let pageCount = 0;
+      if (!decision.run && verdict !== "text" && decision.reason !== "no-need") {
+        ocrSkipped = decision.reason;
+      }
+
+      if (options.ocr && decision.run && ocrBytes && !signal?.aborted) {
+        // A per-file controller chained to the search signal, so one file's OCR
+        // can be cancelled without abandoning the whole search — its partial
+        // pages are still kept and merged. Declared out here so the `finally`
+        // below can detach the relay listener.
+        const fileAbort = new AbortController();
+        const relaySearchAbort = () => fileAbort.abort();
+        signal?.addEventListener("abort", relaySearchAbort, { once: true });
+        options.registerOcrCancel?.(file.id, () => fileAbort.abort());
 
         try {
-          const wantMeta = Boolean(
-            options.onMeta && options.collectMeta?.(file)
-          );
-          const buffer = await loadPdfBuffer(file);
-          const sizeBytes = buffer.byteLength;
-          // Hash before extraction — pdf.js transfers (detaches) the buffer.
-          const sha = wantMeta ? await sha256Hex(buffer) : null;
-
-          // A second copy of the bytes for a possible OCR pass, taken BEFORE
-          // getDocument detaches the buffer. For local files we re-read the
-          // File handle instead, so the common case costs no extra memory —
-          // peak usage is already concurrency x file size (see limits.ts).
-          const ocrBytes: (() => Promise<ArrayBuffer>) | null = !options.ocr
-            ? null
-            : file.type === "file"
-              ? () => (file.source as File).arrayBuffer()
-              : (() => {
-                  const copy = buffer.slice(0);
-                  return async () => copy;
-                })();
-
-          const { pages, meta } = await extractPdfText(buffer, wantMeta);
-          pageCount = pages.length;
-
-          // ── Text-layer verdict ────────────────────────────────────────────
-          const textlessPages = pages
-            .filter((p) => pageIsTextless(p.textChars))
-            .map((p) => p.pageNum);
-          const verdict = classifyTextLayer({
-            totalPages: pages.length,
-            textlessPages: textlessPages.length,
+          const { runOcrJob } = await import("./ocrClient");
+          const outcome = await runOcrJob({
+            buffer: await ocrBytes(),
+            pages: decision.pages,
+            signal: fileAbort.signal,
+            onProgress: decision.silent
+              ? undefined
+              : (p) =>
+                  options.onOcrProgress?.({
+                    fileId: file.id,
+                    fileName: file.name,
+                    pagesDone: p.pagesDone,
+                    pagesTotal: p.pagesTotal,
+                    phase: p.phase,
+                  }),
           });
 
-          let decision: OcrDecision = { run: false, reason: "no-need" };
-          if (verdict !== "text") {
-            decision = decideOcr(
-              verdict,
-              textlessPages,
-              readDeviceCapability(),
-              ocrSupported(),
-              options.ocr ? ocrBudget.left : 0
-            );
-            // Claim the pages now: two files whose decisions land before either
-            // finishes must not each believe the whole allowance is theirs.
-            if (decision.run) ocrBudget.left -= decision.pages.length;
-          }
-
-          try {
-            options.onTextLayer?.(file, {
-              verdict,
-              totalPages: pages.length,
-              textlessPages,
-              decision,
-            });
-          } catch {
-            // Reporting must never break search.
-          }
-
-          // ── OCR pass ──────────────────────────────────────────────────────
-          // Strictly additive: any failure leaves the text-layer result intact.
-          let ocrPages: number[] | undefined;
-          let ocrSkipped: SearchResult["ocrSkipped"];
-          let ocrConfidence: number | undefined;
-          let ocrMs: number | undefined;
-
-          if (!decision.run && verdict !== "text" && decision.reason !== "no-need") {
-            ocrSkipped = decision.reason;
-          }
-
-          if (options.ocr && decision.run && ocrBytes && !signal?.aborted) {
-            try {
-              const { runOcrJob } = await import("./ocrClient");
-              const outcome = await runOcrJob({
-                buffer: await ocrBytes(),
-                pages: decision.pages,
-                signal,
-                onProgress: decision.silent
-                  ? undefined
-                  : (p) =>
-                      options.onOcrProgress?.({
-                        fileName: file.name,
-                        pagesDone: p.pagesDone,
-                        pagesTotal: p.pagesTotal,
-                        phase: p.phase,
-                      }),
-              });
-
-              // Merge into pages[].lines so searchPages needs no knowledge of
-              // provenance — OCR text becomes searchable, highlightable and
-              // exportable through the existing paths.
-              for (const page of pages) {
-                const lines = outcome.pageLines.get(page.pageNum);
-                if (lines && lines.length > 0) {
-                  page.lines = lines;
-                  page.fromOcr = true;
-                }
-              }
-              ocrPages = [...outcome.pageLines.keys()].sort((a, b) => a - b);
-              ocrMs = outcome.ms;
-              if (outcome.confidence !== null) ocrConfidence = outcome.confidence;
-              if (outcome.failed) {
-                ocrSkipped =
-                  outcome.failed.message === "cancelled" ? "cancelled" : "failed";
-              }
-            } catch {
-              ocrSkipped = "failed";
-            } finally {
-              if (!decision.silent) options.onOcrProgress?.(null);
+          // Merge into pages[].lines so searchPages needs no knowledge of
+          // provenance — OCR text becomes searchable, highlightable and
+          // exportable through the existing paths.
+          for (const page of pages) {
+            const lines = outcome.pageLines.get(page.pageNum);
+            if (lines && lines.length > 0) {
+              page.lines = lines;
+              page.fromOcr = true;
             }
           }
-
-          const matches = searchPages(pages, query, options);
-          const durationMs = Math.round(performance.now() - startMs);
-
-          if (wantMeta && sha) {
-            try {
-              options.onMeta!(file, {
-                pageCount: pages.length,
-                meta: meta ?? {},
-                sha256: sha,
-                sizeBytes,
-                processingMs: durationMs,
-              });
-            } catch {
-              // Metadata reporting must never break search.
-            }
+          ocrPages = [...outcome.pageLines.keys()].sort((a, b) => a - b);
+          ocrMs = outcome.ms;
+          ocrPerf = {
+            queueWaitMs: outcome.queueWaitMs,
+            renderMs: outcome.stageMs?.render,
+            encodeMs: outcome.stageMs?.encode,
+            recognizeMs: outcome.stageMs?.recognize,
+            warmMs: outcome.stageMs?.warm,
+            bytesPerPage: outcome.bytesPerPage,
+            peakRecognizing: outcome.peakRecognizing,
+            poolWorkers: outcome.poolWorkers,
+          };
+          if (outcome.confidence !== null) ocrConfidence = outcome.confidence;
+          if (outcome.failed) {
+            ocrSkipped =
+              outcome.failed.message === "cancelled" ? "cancelled" : "failed";
           }
-
-          const result: SearchResult = {
-            fileId: file.id,
-            fileName: file.name,
-            sourceType: file.type,
-            sourceUrl: file.type === "url" ? (file.source as string) : undefined,
-            matches,
-            matchedPages: Array.from(new Set(matches.map((m) => m.page))),
-            totalPages: pages.length,
-            searchDurationMs: durationMs,
-            textLayer: verdict,
-            textlessPages: textlessPages.length > 0 ? textlessPages : undefined,
-            ocrPages: ocrPages && ocrPages.length > 0 ? ocrPages : undefined,
-            ocrSkipped,
-            ocrConfidence,
-            ocrMs,
-            // First page with any text, for the OPT-IN issue-report excerpt.
-            // Page 1 of a scan is often a blank cover, hence "first with text".
-            sampleText: pages
-              .find((p) => p.lines.length > 0)
-              ?.lines.join("\n")
-              .slice(0, 600),
-          };
-
-          return result;
-        } catch (err) {
-          // Return a result with 0 matches + error info rather than crashing.
-          // `error` is a real field on SearchResult now, so no cast is needed.
-          const result: SearchResult = {
-            fileId: file.id,
-            fileName: file.name,
-            sourceType: file.type,
-            sourceUrl: file.type === "url" ? (file.source as string) : undefined,
-            matches: [],
-            matchedPages: [],
-            // Keep whatever we learned before failing — this was hardcoded to 0,
-            // which lost the page count on a mid-extraction failure.
-            totalPages: pageCount,
-            searchDurationMs: Math.round(performance.now() - startMs),
-            error: err instanceof Error ? err.message : "Unknown error",
-          };
-          return result;
+        } catch {
+          ocrSkipped = "failed";
         } finally {
-          completed++;
+          // Clear only THIS file's row. Nulling the whole channel here blanked
+          // every other file that was still being read.
+          if (!decision.silent) options.onOcrDone?.(file.id);
+          options.unregisterOcrCancel?.(file.id);
+          // Drop the relay, or every completed file leaves a listener on the
+          // search signal for the rest of the search.
+          signal?.removeEventListener("abort", relaySearchAbort);
         }
-      })
-    );
+      }
 
-    for (const r of chunkResults) {
-      if (r.status === "fulfilled" && r.value) {
-        results.push(r.value);
+      // Return the pages claimed but not spent. Placed outside the block
+      // above so it covers every path out of a claim — including the case
+      // where `decision.run` was true but the guard declined (no bytes, or
+      // an abort landed in between), which reaches no `finally` at all.
+      // Without this, one failed scan permanently consumes up to
+      // OCR_MAX_PAGES of the search allowance and later scanned files get
+      // `reason: "budget"` and silently return zero matches.
+      if (decision.run) {
+        ocrBudget.left += refundBudget(
+          decision.pages.length,
+          ocrPages?.length ?? 0
+        );
+      }
+
+      const matches = searchPages(pages, query, options);
+      const durationMs = Math.round(performance.now() - startMs);
+
+      if (wantMeta && sha) {
+        try {
+          options.onMeta!(file, {
+            pageCount: pages.length,
+            meta: meta ?? {},
+            sha256: sha,
+            sizeBytes,
+            processingMs: durationMs,
+          });
+        } catch {
+          // Metadata reporting must never break search.
+        }
+      }
+
+      const result: SearchResult = {
+        fileId: file.id,
+        fileName: file.name,
+        sourceType: file.type,
+        sourceUrl: file.type === "url" ? (file.source as string) : undefined,
+        matches,
+        matchedPages: Array.from(new Set(matches.map((m) => m.page))),
+        totalPages: pages.length,
+        searchDurationMs: durationMs,
+        textLayer: verdict,
+        textlessPages: textlessPages.length > 0 ? textlessPages : undefined,
+        ocrPages: ocrPages && ocrPages.length > 0 ? ocrPages : undefined,
+        ocrSkipped,
+        ocrConfidence,
+        ocrMs,
+        ocrPerf,
+        // First page with any text, for the OPT-IN issue-report excerpt.
+        // Page 1 of a scan is often a blank cover, hence "first with text".
+        sampleText: pages
+          .find((p) => p.lines.length > 0)
+          ?.lines.join("\n")
+          .slice(0, 600),
+      };
+
+      return result;
+    } catch (err) {
+      // Return a result with 0 matches + error info rather than crashing.
+      // `error` is a real field on SearchResult now, so no cast is needed.
+      const result: SearchResult = {
+        fileId: file.id,
+        fileName: file.name,
+        sourceType: file.type,
+        sourceUrl: file.type === "url" ? (file.source as string) : undefined,
+        matches: [],
+        matchedPages: [],
+        // Keep whatever we learned before failing — this was hardcoded to 0,
+        // which lost the page count on a mid-extraction failure.
+        totalPages: pageCount,
+        searchDurationMs: Math.round(performance.now() - startMs),
+        error: err instanceof Error ? err.message : "Unknown error",
+      };
+      return result;
+    } finally {
+      completed++;
+    }
+  };
+
+  // A sliding window, not chunked batches.
+  //
+  // This used to `await Promise.allSettled` over each chunk of `concurrency`
+  // files, which is a barrier: one slow file (a 50-page scan takes ~75s) held
+  // up every file in later chunks, even though they had work they could do.
+  // Now each runner takes the next file the moment it frees up, so a slow file
+  // costs only its own slot. Peak memory is unchanged — still at most
+  // `concurrency` buffers in flight, which is what computeConcurrency bounds.
+  //
+  // Results are written by index rather than pushed, making the output order
+  // deterministic (chunked push order was not).
+  const results: (SearchResult | null)[] = new Array(files.length).fill(null);
+  let next = 0;
+  const runners = Array.from(
+    { length: Math.max(1, Math.min(concurrency, files.length)) },
+    async () => {
+      for (;;) {
+        if (signal?.aborted) return;
+        const index = next++;
+        if (index >= files.length) return;
+        // processFile never throws — it returns an error-bearing SearchResult —
+        // but a defensive catch keeps one unexpected failure from killing a
+        // runner and silently reducing concurrency for the rest of the search.
+        try {
+          results[index] = await processFile(files[index]);
+        } catch {
+          results[index] = null;
+        }
       }
     }
-  }
+  );
+  await Promise.all(runners);
 
   onProgress?.({
     total: files.length,
@@ -537,6 +608,6 @@ export async function searchAllPdfs(
     percentage: 100,
   });
 
-  return results;
+  return results.filter((r): r is SearchResult => r !== null);
 }
 
