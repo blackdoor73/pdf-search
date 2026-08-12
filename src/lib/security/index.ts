@@ -11,6 +11,15 @@
  */
 
 import { z } from "zod";
+// ocrLang is pure and dependency-free (no imports, no browser globals), so it
+// is safe here even though this module is used by server API routes.
+//
+// Relative and extension-qualified, unlike the rest of the codebase, and both
+// parts are required. tests/security.test.ts runs under bare `node --test`,
+// which resolves neither tsconfig `paths` (so "@/lib/..." fails) nor
+// extensionless TS specifiers. Next.js accepts this form via
+// allowImportingTsExtensions, so it is the one spelling both runtimes load.
+import { buildSearchPattern } from "../pdf/ocrLang.ts";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -329,16 +338,28 @@ export function escapeHtml(text: string): string {
  * Creates a safe highlighted HTML snippet.
  * HTML-escapes the text first, THEN wraps matches in <mark>.
  * This is the correct order to prevent XSS via search query injection.
+ *
+ * `wholeWord` must be passed through from the same SearchOptions that drove
+ * searchPages. It was previously absent, which meant a whole-word search that
+ * matched "test" would also mark the "test" inside a neighbouring "testing" —
+ * the matcher and the highlighter disagreeing about what a match is. Both now
+ * build their regex from buildSearchPattern so they cannot drift again.
+ *
+ * Escaping before matching means the haystack contains entities like "&amp;"
+ * and "&#039;". The Unicode boundary treats &, # and ; as non-word characters,
+ * so an escaped entity does not glue itself to an adjacent match. Do not
+ * reorder these two steps — matching first would reintroduce the XSS hole.
  */
 export function createHighlightedHtml(
   text: string,
   query: string,
-  caseSensitive: boolean
+  caseSensitive: boolean,
+  wholeWord = false
 ): string {
   const safeText = escapeHtml(text);
   const safeQuery = escapeHtml(query);
-  const flags = caseSensitive ? "g" : "gi";
-  const pattern = new RegExp(escapeRegex(safeQuery), flags);
+  const pattern = buildSearchPattern(safeQuery, { caseSensitive, wholeWord });
+  if (!pattern) return safeText;
   return safeText.replace(pattern, (m) => `<mark>${m}</mark>`);
 }
 
