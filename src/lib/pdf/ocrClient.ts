@@ -31,6 +31,8 @@ export interface OcrJobOptions {
   pages: number[];
   onProgress?: (p: OcrJobProgress) => void;
   signal?: AbortSignal;
+  /** Tesseract language code, e.g. "eng", "deu". Defaults to "eng". */
+  lang?: string;
 }
 
 let worker: Worker | null = null;
@@ -94,6 +96,7 @@ function execute({
   pages,
   onProgress,
   signal,
+  lang,
 }: OcrJobOptions): Promise<OcrOutcome> {
   const jobId = `ocr-${++jobCounter}`;
   const pageLines = new Map<number, string[]>();
@@ -104,6 +107,7 @@ function execute({
   let timedPages = 0;
   let peakRecognizing = 0;
   let poolWorkers = 0;
+  let doneLang: string | undefined;
 
   return new Promise<OcrOutcome>((resolve) => {
     const w = getWorker();
@@ -123,6 +127,7 @@ function execute({
         timedPages > 0 ? Math.round(totalBytes / timedPages) : undefined,
       peakRecognizing,
       poolWorkers,
+      lang: doneLang ?? lang,
     });
 
     const cleanup = () => {
@@ -164,6 +169,7 @@ function execute({
           stage.warm = m.warmMs ?? 0;
           peakRecognizing = m.peakRecognizing ?? 0;
           poolWorkers = m.poolWorkers ?? 0;
+          doneLang = m.lang;
           finish();
           break;
         case "error":
@@ -202,6 +208,7 @@ function execute({
       // Decided here because computeOcrPoolSize reads navigator, which the
       // worker scope does not expose.
       poolSize: computeOcrPoolSize(readDeviceCapability()),
+      lang: lang ?? "eng",
     };
     w.postMessage(req, [buffer]);
   });

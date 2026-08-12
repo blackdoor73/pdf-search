@@ -13,7 +13,7 @@ export const OCR_ASSETS = {
    *  filename here would pin every device to one build. */
   corePath: "/tesseract/",
   langPath: "/tesseract/lang",
-  lang: "eng",
+  defaultLang: "eng",
 } as const;
 
 // ─── Main thread → worker ─────────────────────────────────────────────────────
@@ -30,6 +30,9 @@ export interface OcrRunRequest {
    * computeOcrPoolSize(), which needs `navigator` — unavailable in the worker.
    */
   poolSize?: number;
+  /** Tesseract language code, e.g. "eng", "deu". Required — an unset language
+   *  should be a type error, not a silent English fallback. */
+  lang: string;
 }
 
 export interface OcrCancelRequest {
@@ -89,6 +92,8 @@ export interface OcrDoneMessage {
   peakRecognizing?: number;
   /** Workers the scheduler had when the job finished. */
   poolWorkers?: number;
+  /** The language that was actually used for recognition. */
+  lang?: string;
 }
 
 export interface OcrErrorMessage {
@@ -132,4 +137,6 @@ export interface OcrOutcome {
   /** Max concurrent recognitions observed, and the pool size behind it. */
   peakRecognizing?: number;
   poolWorkers?: number;
+  /** The language that was used for recognition. */
+  lang?: string;
 }

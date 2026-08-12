@@ -34,6 +34,8 @@ export interface SearchOptions {
   caseSensitive: boolean;
   wholeWord: boolean;
   showContext: boolean;
+  /** Tesseract language code for OCR, e.g. "deu". Undefined = auto-detect. */
+  ocrLang?: string;
 }
 
 export interface SearchMatch {
@@ -98,6 +100,10 @@ export interface SearchResult {
    * visitor explicitly includes it in a report.
    */
   sampleText?: string;
+  /** Tesseract language code actually used for OCR, e.g. "deu". */
+  ocrLang?: string;
+  /** How the OCR language was resolved: user pick, text sniff, /Lang, or default. */
+  ocrLangSource?: "user" | "sniff" | "metadata" | "default";
 }
 
 /** Mirrors TextLayerVerdict in @/lib/pdf/ocrLimits (kept structural to avoid a
