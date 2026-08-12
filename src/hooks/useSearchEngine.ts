@@ -437,6 +437,7 @@ export function useSearchEngine() {
         const results = await searchAllPdfs(files, safeQuery, {
           ...searchOptions,
           ocr: true,
+          ocrLang: searchOptions.ocrLang,
           textCache: {
             get: (f) => cache.get(cacheKeyFor(f)),
             set: (f, d) => cache.set(cacheKeyFor(f), d),
@@ -541,6 +542,8 @@ export function useSearchEngine() {
             recognizeMs: r.ocrPerf?.recognizeMs ?? 0,
             warmMs: r.ocrPerf?.warmMs ?? 0,
             bytesPerPage: r.ocrPerf?.bytesPerPage ?? 0,
+            lang: r.ocrLang ?? "",
+            langSource: r.ocrLangSource ?? "",
           });
         }
         for (const r of results) {

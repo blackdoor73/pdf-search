@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Search, X, Settings2, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SearchOptions, SearchHistoryEntry } from "@/types";
+import { OCR_LANGS } from "@/lib/pdf/ocrLang";
 
 interface SearchBarProps {
   onSearch: (query: string) => void;
@@ -310,6 +311,28 @@ export function SearchBar({
             <span className="font-mono text-xs text-[var(--text-3)] group-hover:text-[var(--text-2)] transition-colors">
               Show surrounding context
             </span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer group">
+            <span className="font-mono text-xs text-[var(--text-3)] group-hover:text-[var(--text-2)] transition-colors">
+              OCR language
+            </span>
+            <select
+              value={options.ocrLang ?? ""}
+              onChange={(e) =>
+                onOptionsChange({
+                  ...options,
+                  ocrLang: e.target.value || undefined,
+                })
+              }
+              className="font-mono text-xs bg-transparent text-[var(--text-2)] border border-[var(--border)] rounded px-1.5 py-0.5 outline-none focus:border-[var(--accent)]"
+            >
+              <option value="">Auto-detect</option>
+              {OCR_LANGS.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
           </label>
         </div>
       )}

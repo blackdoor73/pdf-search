@@ -6,3 +6,4 @@ tsconfig.tsbuildinfo
 .env
 public/pdf.worker.min.mjs
 public/tesseract/
+*.traineddata

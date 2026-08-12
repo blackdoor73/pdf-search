@@ -55,13 +55,44 @@ const cancelled = new Set<string>();
  * build, and there is no SharedArrayBuffer here (no COOP/COEP) — so the only way
  * to go faster is more workers. createScheduler hands each queued job to
  * whichever worker is idle, which needs no shared memory at all.
+ *
+ * The pool is keyed by language. On a match it returns the cached pool — the
+ * English path is byte-identical to the pre-multi-language code. On a mismatch
+ * it tears down and respawns rather than calling reinitialize(), because
+ * reinitialize() silently drops setParameters (PSM.AUTO, user_defined_dpi) by
+ * calling api.End() + new TessBaseAPI() without re-applying params.
  */
-let poolPromise: Promise<Scheduler> | null = null;
+let pool: { lang: string; scheduler: Promise<Scheduler> } | null = null;
 let poolWorkers: TesseractWorker[] = [];
 let idleTimer: ReturnType<typeof setTimeout> | null = null;
 
-async function spawnWorker(): Promise<TesseractWorker> {
-  const w = await createWorker(OCR_ASSETS.lang, OEM.LSTM_ONLY, {
+/**
+ * Language mutex: ensures the pool's language is not switched while recognition
+ * is in flight. Jobs in the same language multiplex freely (up to OCR_JOB_LIMIT).
+ * A job in a different language waits for all in-flight recognition to finish,
+ * then tears down and rebuilds the pool.
+ */
+let activeRecognizers = 0;
+let langWaiters: (() => void)[] = [];
+
+function waitForRecognizerDrain(): Promise<void> {
+  if (activeRecognizers === 0) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    langWaiters.push(resolve);
+  });
+}
+
+function signalRecognizerDone() {
+  activeRecognizers = Math.max(0, activeRecognizers - 1);
+  if (activeRecognizers === 0) {
+    const waiters = langWaiters;
+    langWaiters = [];
+    for (const w of waiters) w();
+  }
+}
+
+async function spawnWorker(lang: string): Promise<TesseractWorker> {
+  const w = await createWorker(lang, OEM.LSTM_ONLY, {
     workerPath: OCR_ASSETS.workerPath,
     corePath: OCR_ASSETS.corePath,
     langPath: OCR_ASSETS.langPath,
@@ -84,13 +115,35 @@ async function spawnWorker(): Promise<TesseractWorker> {
   return w;
 }
 
-async function getPool(poolSize: number): Promise<Scheduler> {
+async function teardownPool(): Promise<void> {
+  const p = pool;
+  pool = null;
+  const workers = poolWorkers;
+  poolWorkers = [];
+  if (!p) return;
+  try {
+    const scheduler = await p.scheduler;
+    await scheduler?.terminate().catch(() => {});
+    await Promise.all(workers.map((w) => w.terminate().catch(() => {})));
+  } catch {
+    // Nothing to release.
+  }
+}
+
+async function getPool(lang: string, poolSize: number): Promise<Scheduler> {
   if (idleTimer) {
     clearTimeout(idleTimer);
     idleTimer = null;
   }
-  if (!poolPromise) {
-    poolPromise = (async () => {
+
+  // Language mismatch: wait for in-flight recognition to drain, then rebuild.
+  if (pool && pool.lang !== lang) {
+    await waitForRecognizerDrain();
+    await teardownPool();
+  }
+
+  if (!pool) {
+    const schedulerPromise = (async () => {
       const scheduler = createScheduler();
 
       // Staggered on purpose. Language data is cached in IndexedDB, but the
@@ -99,15 +152,15 @@ async function getPool(poolSize: number): Promise<Scheduler> {
       // ~3MB, and all gunzip it synchronously. Awaiting the first worker warms
       // the cache and lets recognition begin at today's latency; the rest join
       // as they resolve, and addWorker() dequeues any waiting job itself.
-      const first = await spawnWorker();
+      const first = await spawnWorker(lang);
       poolWorkers.push(first);
       scheduler.addWorker(first);
 
       for (let i = 1; i < poolSize; i++) {
-        void spawnWorker()
+        void spawnWorker(lang)
           .then((w) => {
             // Dropped if the pool was torn down while this was starting.
-            if (poolPromise === null) {
+            if (pool === null) {
               void w.terminate();
               return;
             }
@@ -122,31 +175,19 @@ async function getPool(poolSize: number): Promise<Scheduler> {
       return scheduler;
     })().catch((err) => {
       // Never cache a failed init — the next job should retry from scratch.
-      poolPromise = null;
+      pool = null;
       throw err;
     });
+    pool = { lang, scheduler: schedulerPromise };
   }
-  return poolPromise;
+  return pool.scheduler;
 }
 
 function schedulePoolRelease() {
   if (idleTimer) clearTimeout(idleTimer);
   idleTimer = setTimeout(async () => {
-    const p = poolPromise;
-    poolPromise = null;
+    await teardownPool();
     idleTimer = null;
-    const workers = poolWorkers;
-    poolWorkers = [];
-    try {
-      const scheduler = await p;
-      // terminate() on the scheduler stops its workers; terminating each
-      // explicitly as well guarantees the WASM heaps go, since a parent
-      // terminate does not reliably reclaim a nested worker in every engine.
-      await scheduler?.terminate().catch(() => {});
-      await Promise.all(workers.map((w) => w.terminate().catch(() => {})));
-    } catch {
-      // Nothing to release.
-    }
   }, OCR_IDLE_TERMINATE_MS);
 }
 
@@ -179,7 +220,8 @@ async function run(
   jobId: string,
   buffer: ArrayBuffer,
   pages: number[],
-  poolSize: number
+  poolSize: number,
+  lang: string
 ) {
   const started = Date.now();
   let pagesOcrd = 0;
@@ -198,12 +240,12 @@ async function run(
   let pdf: PDFDocumentProxy | null = null;
 
   try {
-    let pool: Scheduler;
+    let scheduler: Scheduler;
     try {
       // Zero when the pool is already warm — which is the point of caching it
       // across jobs, and worth being able to confirm from the numbers.
       const warmStart = performance.now();
-      pool = await getPool(poolSize);
+      scheduler = await getPool(lang, poolSize);
       warmMs = Math.round(performance.now() - warmStart);
     } catch (err) {
       fail(err instanceof Error ? err.message : String(err), "init");
@@ -300,11 +342,13 @@ async function run(
 
       const recognizeStart = performance.now();
       recognizing++;
+      activeRecognizers++;
       peakRecognizing = Math.max(peakRecognizing, recognizing);
-      const job = pool
+      const job = scheduler
         .addJob("recognize", blob)
         .then(({ data }) => {
           recognizing--;
+          signalRecognizerDone();
           if (cancelled.has(jobId)) return;
           pagesOcrd++;
           // Monotonic completion order, NOT the page's position in the list:
@@ -330,6 +374,7 @@ async function run(
         })
         .catch((err: unknown) => {
           recognizing = Math.max(0, recognizing - 1);
+          signalRecognizerDone();
           firstFailure ??= {
             message: err instanceof Error ? err.message : String(err),
             pageNum,
@@ -362,6 +407,7 @@ async function run(
       warmMs,
       peakRecognizing,
       poolWorkers: poolWorkers.length,
+      lang,
     });
   } finally {
     if (canvas) {
@@ -384,6 +430,6 @@ ctx.onmessage = (e: MessageEvent<OcrRequest>) => {
     return;
   }
   if (msg.type === "run") {
-    void run(msg.jobId, msg.buffer, msg.pages, msg.poolSize ?? 1);
+    void run(msg.jobId, msg.buffer, msg.pages, msg.poolSize ?? 1, msg.lang);
   }
 };

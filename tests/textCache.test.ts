@@ -180,3 +180,65 @@ test("size never goes negative after delete", () => {
   cache.delete("k"); // double-delete
   assert.ok(cache.size() >= 0);
 });
+
+// ─── ocrLang on CachedDoc ───────────────────────────────────────────────────
+
+test("ocrLang is preserved through set/get", () => {
+  const cache = createPageTextCache();
+  const doc = makeDoc([makePage(1, "hallo welt")], {
+    ocrPages: [1],
+    ocrLang: "deu",
+  });
+  cache.set("k", doc);
+  const got = cache.get("k")!;
+  assert.equal(got.ocrLang, "deu");
+});
+
+test("ocrLang is undefined when no OCR was performed", () => {
+  const cache = createPageTextCache();
+  const doc = makeDoc([makePage(1, "text only")]);
+  cache.set("k", doc);
+  const got = cache.get("k")!;
+  assert.equal(got.ocrLang, undefined);
+});
+
+test("lang mismatch makes a cache entry unsuitable — engine guard scenario", () => {
+  // This test verifies the invariant that engine.ts uses: a CachedDoc OCR'd
+  // in "eng" should be treated as a miss when the user switches to "deu".
+  // The cache itself stores and returns the doc faithfully; the mismatch
+  // check is the engine's responsibility. This test documents the field.
+  const cache = createPageTextCache();
+  const doc = makeDoc([makePage(1, "english text")], {
+    verdict: "scanned",
+    textlessPages: [1],
+    ocrPages: [1],
+    ocrLang: "eng",
+    complete: true,
+  });
+  cache.set("k", doc);
+  const got = cache.get("k")!;
+
+  // Engine guard: complete && ocrPages.length > 0 && ocrLang !== requestedLang
+  const requestedLang = "deu";
+  const langOk =
+    got.ocrPages.length === 0 || got.ocrLang === requestedLang;
+  assert.equal(langOk, false, "lang mismatch should make entry unsuitable");
+
+  // Same language: entry IS suitable.
+  const sameLang = "eng";
+  const langOkSame =
+    got.ocrPages.length === 0 || got.ocrLang === sameLang;
+  assert.equal(langOkSame, true, "same lang should be a hit");
+
+  // Text-only doc (ocrPages=[]) is always suitable.
+  const textDoc = makeDoc([makePage(1, "pure text")], {
+    verdict: "text",
+    ocrPages: [],
+    complete: true,
+  });
+  cache.set("k2", textDoc);
+  const textGot = cache.get("k2")!;
+  const textLangOk =
+    textGot.ocrPages.length === 0 || textGot.ocrLang === requestedLang;
+  assert.equal(textLangOk, true, "text-only doc is always suitable");
+});

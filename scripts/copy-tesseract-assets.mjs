@@ -47,17 +47,47 @@ const assets = [
     "node_modules/tesseract.js-core/tesseract-core-lstm.wasm.js",
     "tesseract-core-lstm.wasm.js",
   ],
-  // Language data. tesseract.js fetches `${langPath}/eng.traineddata.gz`, so
-  // the basename must be exactly this.
-  [
-    "node_modules/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz",
-    "lang/eng.traineddata.gz",
-  ],
 ];
 
+// Language data. tesseract.js fetches `${langPath}/<code>.traineddata.gz`, so
+// basenames must be exactly `<code>.traineddata.gz`.
+//
+// This list MUST match OCR_LANGS in src/lib/pdf/ocrLang.ts — the two live in
+// different module systems (.mjs vs .ts), so the duplication is forced, and
+// tests/ocrLang.test.ts enforces the match.
+//
+// Measured sizes (4.0.0_best_int, compressed):
+//   eng 2.95MB, fra 0.67MB, deu 1.27MB, ita 1.58MB,
+//   por 1.33MB, spa 2.00MB, rus 2.56MB
+const LANG_ASSETS = [
+  "eng",
+  "spa",
+  "fra",
+  "deu",
+  "ita",
+  "por",
+  "rus",
+];
+
+for (const lang of LANG_ASSETS) {
+  assets.push([
+    `node_modules/@tesseract.js-data/${lang}/4.0.0_best_int/${lang}.traineddata.gz`,
+    `lang/${lang}.traineddata.gz`,
+  ]);
+}
+
 for (const [src, name] of assets) {
+  const srcPath = join(root, src);
   const dest = join(outDir, name);
-  await mkdir(dirname(dest), { recursive: true }); // `name` may include a subdir
-  await copyFile(join(root, src), dest);
+  await mkdir(dirname(dest), { recursive: true });
+  try {
+    await copyFile(srcPath, dest);
+  } catch (err) {
+    // Fail loudly — a silent skip becomes a 404 at recognize time on one
+    // language only, the worst way to find out.
+    console.error(`[copy-tesseract-assets] FATAL: cannot copy ${src}`);
+    console.error(err.message);
+    process.exit(1);
+  }
 }
 console.log(`[copy-tesseract-assets] ${assets.length} files → public/tesseract/`);

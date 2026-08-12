@@ -30,6 +30,7 @@ import {
 import { readDeviceCapability } from "@/lib/upload/limits";
 import type { CachedDoc } from "./textCache";
 import { estimateDocBytes } from "./textCache";
+import { resolveOcrLang } from "./ocrLang";
 
 // ─── pdf.js initialization ────────────────────────────────────────────────────
 
@@ -62,6 +63,8 @@ const INFO_KEYS: Record<string, string> = {
   Producer: "producer",
   CreationDate: "created",
   ModDate: "modified",
+  /** PDF catalog /Lang — BCP-47 tag, e.g. "de-DE". Free from getMetadata(). */
+  Language: "language",
 };
 
 function readDocInfo(info: unknown): PdfDocMeta {
@@ -294,6 +297,9 @@ export interface SearchOrchestrationOptions extends SearchOptions {
    * pass can ship — and be measured — before the OCR pass is enabled.
    */
   ocr?: boolean;
+  /** Tesseract language code chosen by the user, e.g. "deu".
+   *  Undefined = auto-detect (text sniff → /Lang metadata → English default). */
+  ocrLang?: string;
   /** Fires only for non-silent (large) OCR runs, once per progress update. */
   onOcrProgress?: (progress: OcrProgress) => void;
   /** This file's OCR finished — drop its progress row. */
@@ -382,7 +388,18 @@ export async function searchAllPdfs(
 
       // ── Cache hit — skip loadPdfBuffer, pdf.js, and OCR entirely ────
       const cached = !wantMeta ? options.textCache?.get(file) : undefined;
-      if (cached && cached.complete) {
+      // A cache entry is usable when it is complete AND its OCR language
+      // matches the current request. A mismatch is treated as a miss so the
+      // file is re-OCR'd in the new language. Text-only docs (ocrPages=[])
+      // match regardless — they were never OCR'd, so language is irrelevant.
+      // When ocrLang is undefined (auto-detect), any cached language is
+      // accepted — we can't resolve the auto language without opening the
+      // PDF, and the prior auto resolution was equally valid.
+      const langOk =
+        cached?.ocrPages.length === 0 ||
+        !options.ocrLang ||
+        cached?.ocrLang === options.ocrLang;
+      if (cached && cached.complete && langOk) {
         const pages = cached.pages;
         pageCount = pages.length;
         const matches = searchPages(pages, query, options);
@@ -409,6 +426,7 @@ export async function searchAllPdfs(
           textLayer: cached.verdict,
           textlessPages: cached.textlessPages.length > 0 ? cached.textlessPages : undefined,
           ocrPages: cached.ocrPages.length > 0 ? cached.ocrPages : undefined,
+          ocrLang: cached.ocrLang,
           sampleText: pages
             .find((p) => p.lines.length > 0)
             ?.lines.join("\n")
@@ -466,6 +484,24 @@ export async function searchAllPdfs(
         // Reporting must never break search.
       }
 
+      // ── OCR language resolution ─────────────────────────────────────
+      // Resolve before the OCR pass so `lang` is available for runOcrJob
+      // and for the cache store. For mixed docs, score the first ~2000
+      // chars of text-layer pages — zero OCR cost, best automatic signal.
+      const textSample =
+        verdict === "mixed"
+          ? pages
+              .filter((p) => !textlessPages.includes(p.pageNum) && p.lines.length > 0)
+              .flatMap((p) => p.lines)
+              .join(" ")
+              .slice(0, 2000)
+          : undefined;
+      const langResolution = resolveOcrLang({
+        userLang: options.ocrLang,
+        docLang: meta?.language,
+        textSample,
+      });
+
       // ── OCR pass ──────────────────────────────────────────────────────
       // Strictly additive: any failure leaves the text-layer result intact.
       let ocrPages: number[] | undefined;
@@ -494,6 +530,7 @@ export async function searchAllPdfs(
             buffer: await ocrBytes(),
             pages: decision.pages,
             signal: fileAbort.signal,
+            lang: langResolution.lang,
             onProgress: decision.silent
               ? undefined
               : (p) =>
@@ -577,6 +614,7 @@ export async function searchAllPdfs(
             textlessPages.every((p) => ocrPages?.includes(p)),
           bytes: estimateDocBytes(pages),
           storedAt: Date.now(),
+          ocrLang: ocrPages && ocrPages.length > 0 ? langResolution.lang : undefined,
         });
       } catch { /* cache store must never break search */ }
 
@@ -613,6 +651,8 @@ export async function searchAllPdfs(
         ocrConfidence,
         ocrMs,
         ocrPerf,
+        ocrLang: ocrPages && ocrPages.length > 0 ? langResolution.lang : undefined,
+        ocrLangSource: ocrPages && ocrPages.length > 0 ? langResolution.source : undefined,
         // First page with any text, for the OPT-IN issue-report excerpt.
         // Page 1 of a scan is often a blank cover, hence "first with text".
         sampleText: pages

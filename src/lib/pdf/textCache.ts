@@ -32,6 +32,9 @@ export interface CachedDoc {
   /** Approximate retained bytes, for the eviction cap. */
   bytes: number;
   storedAt: number;
+  /** Tesseract language code used for OCR, e.g. "eng", "deu". Undefined means
+   *  no OCR was performed — preserving text-only and prefetch paths untouched. */
+  ocrLang?: string;
 }
 
 export interface PageTextCache {
