@@ -14,9 +14,12 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
+    "@tesseract.js-data/chi_sim": "1.0.0",
+    "@tesseract.js-data/chi_tra": "1.0.0",
     "@tesseract.js-data/deu": "1.0.0",
     "@tesseract.js-data/eng": "1.0.0",
     "@tesseract.js-data/fra": "1.0.0",
+    "@tesseract.js-data/hin": "1.0.0",
     "@tesseract.js-data/ita": "1.0.0",
     "@tesseract.js-data/por": "1.0.0",
     "@tesseract.js-data/rus": "1.0.0",

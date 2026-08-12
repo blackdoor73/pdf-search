@@ -35,6 +35,7 @@ import {
   OCR_IDLE_TERMINATE_MS,
   OCR_TARGET_DPI,
 } from "./ocrLimits";
+import { despaceCjk } from "./ocrLang";
 
 const ctx = self as unknown as {
   postMessage: (m: OcrResponse) => void;
@@ -210,7 +211,12 @@ async function getPdfjs() {
 function toLines(text: string): string[] {
   return text
     .split(/\r?\n/)
-    .map((l) => l.replace(/\s{2,}/g, " ").trim())
+    // Collapse runs first, then remove the inter-ideograph spaces tesseract
+    // inserts between CJK characters. Order matters: the \s{2,} pass turns
+    // "测  试" into "测 试", and despaceCjk is what removes the survivor.
+    // Without this, CJK text is stored as "这 是 一 个 测 试" and a search for
+    // "测试" silently never matches.
+    .map((l) => despaceCjk(l.replace(/\s{2,}/g, " ").trim()))
     .filter((l) => l.length > 0);
 }
 

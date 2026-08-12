@@ -58,7 +58,12 @@ const assets = [
 //
 // Measured sizes (4.0.0_best_int, compressed):
 //   eng 2.95MB, fra 0.67MB, deu 1.27MB, ita 1.58MB,
-//   por 1.33MB, spa 2.00MB, rus 2.56MB
+//   por 1.33MB, spa 2.00MB, rus 2.56MB,
+//   hin 1.39MB, chi_sim 1.72MB, chi_tra 1.58MB
+//
+// Note the CJK models are SMALLER than eng, not larger. npm's unpackedSize for
+// @tesseract.js-data/chi_sim (~21.9MB) counts the Legacy `4.0.0/` build, which
+// OEM.LSTM_ONLY never loads — only the `4.0.0_best_int/` .gz below is shipped.
 const LANG_ASSETS = [
   "eng",
   "spa",
@@ -67,6 +72,9 @@ const LANG_ASSETS = [
   "ita",
   "por",
   "rus",
+  "hin",
+  "chi_sim",
+  "chi_tra",
 ];
 
 for (const lang of LANG_ASSETS) {

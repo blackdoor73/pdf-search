@@ -17,7 +17,7 @@ import type {
   SearchProgress,
   OcrProgress,
 } from "@/types";
-import { escapeRegex, createHighlightedHtml } from "@/lib/security";
+import { createHighlightedHtml } from "@/lib/security";
 import {
   classifyTextLayer,
   decideOcr,
@@ -30,7 +30,12 @@ import {
 import { readDeviceCapability } from "@/lib/upload/limits";
 import type { CachedDoc } from "./textCache";
 import { estimateDocBytes } from "./textCache";
-import { resolveOcrLang } from "./ocrLang";
+import {
+  resolveOcrLang,
+  buildSearchPattern,
+  despaceCjk,
+  truncateGraphemes,
+} from "./ocrLang";
 
 // ─── pdf.js initialization ────────────────────────────────────────────────────
 
@@ -187,12 +192,36 @@ function groupIntoLines(
   return Array.from(lineMap.entries())
     .sort((a, b) => b[0] - a[0])
     .map(([, strs]) =>
-      strs
-        .join(" ")
-        .replace(/\s{2,}/g, " ")
-        .trim()
+      // join(" ") inserts a space between every text span, which for CJK
+      // documents means one between every ideograph — pdf.js emits them as
+      // separate spans. despaceCjk removes exactly those, leaving the spaces
+      // that separate Latin words and digits intact. This is the text-layer
+      // twin of the same fix in ocr.worker.ts's toLines.
+      despaceCjk(
+        strs
+          .join(" ")
+          .replace(/\s{2,}/g, " ")
+          .trim()
+      )
     )
     .filter((line) => line.length > 0);
+}
+
+/** Max chars of extracted text kept for the opt-in issue-report diagnostics. */
+const SAMPLE_TEXT_MAX = 600;
+
+/**
+ * First page that has any text, truncated for the issue-report diagnostics.
+ * Page 1 of a scan is often a blank cover, hence "first with text".
+ *
+ * Grapheme-safe: a plain slice would cut Devanagari mid-cluster and hand a
+ * human a mangled sample.
+ */
+function truncateSample(pages: ExtractedPage[]): string | undefined {
+  const text = pages.find((p) => p.lines.length > 0)?.lines.join("\n");
+  return text === undefined
+    ? undefined
+    : truncateGraphemes(text, SAMPLE_TEXT_MAX);
 }
 
 // ─── Search ───────────────────────────────────────────────────────────────────
@@ -209,15 +238,11 @@ function searchPages(
   const { caseSensitive, wholeWord } = options;
   const matches: SearchMatch[] = [];
 
-  // Build regex once for efficiency
-  let pattern: RegExp;
-  try {
-    const escapedQuery = escapeRegex(query);
-    const wordBoundary = wholeWord ? `\\b${escapedQuery}\\b` : escapedQuery;
-    pattern = new RegExp(wordBoundary, caseSensitive ? "g" : "gi");
-  } catch {
-    return [];
-  }
+  // Build regex once for efficiency. buildSearchPattern is shared with
+  // createHighlightedHtml so the matcher and the highlighter cannot disagree
+  // about what counts as a match — they did before, on wholeWord.
+  const pattern = buildSearchPattern(query, { caseSensitive, wholeWord });
+  if (!pattern) return [];
 
   for (const page of pages) {
     page.lines.forEach((line, lineIndex) => {
@@ -228,7 +253,12 @@ function searchPages(
           page: page.pageNum,
           lineIndex,
           text: line,
-          highlightedHtml: createHighlightedHtml(line, query, caseSensitive),
+          highlightedHtml: createHighlightedHtml(
+            line,
+            query,
+            caseSensitive,
+            wholeWord
+          ),
         });
       }
     });
@@ -427,10 +457,7 @@ export async function searchAllPdfs(
           textlessPages: cached.textlessPages.length > 0 ? cached.textlessPages : undefined,
           ocrPages: cached.ocrPages.length > 0 ? cached.ocrPages : undefined,
           ocrLang: cached.ocrLang,
-          sampleText: pages
-            .find((p) => p.lines.length > 0)
-            ?.lines.join("\n")
-            .slice(0, 600),
+          sampleText: truncateSample(pages),
         };
       }
 
@@ -655,10 +682,7 @@ export async function searchAllPdfs(
         ocrLangSource: ocrPages && ocrPages.length > 0 ? langResolution.source : undefined,
         // First page with any text, for the OPT-IN issue-report excerpt.
         // Page 1 of a scan is often a blank cover, hence "first with text".
-        sampleText: pages
-          .find((p) => p.lines.length > 0)
-          ?.lines.join("\n")
-          .slice(0, 600),
+        sampleText: truncateSample(pages),
       };
 
       return result;
