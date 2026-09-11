@@ -33,7 +33,6 @@ export type PdfStatus =
 export interface SearchOptions {
   caseSensitive: boolean;
   wholeWord: boolean;
-  showContext: boolean;
   /** Tesseract language code for OCR, e.g. "deu". Undefined = auto-detect. */
   ocrLang?: string;
 }

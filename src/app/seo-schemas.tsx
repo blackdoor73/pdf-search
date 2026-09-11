@@ -1,4 +1,3 @@
-import { siteUrl } from "@/lib/seo/site";
 
 export const homepageFaqSchema = {
   "@context": "https://schema.org",
@@ -67,35 +66,6 @@ export const homepageFaqSchema = {
         "@type": "Answer",
         text: "Yes. Paste any public HTTPS PDF URL into the URL input field. PDFSearch will fetch the PDF through a secure proxy and search it — no manual download needed.",
       },
-    },
-  ],
-};
-
-export const homepageHowToSchema = {
-  "@context": "https://schema.org",
-  "@type": "HowTo",
-  name: "How to Search Text Inside a PDF Online",
-  description: "Search for any word or phrase inside PDF files using PDFSearch — free, instant, and private.",
-  image: `${siteUrl}/opengraph-image`,
-  totalTime: "PT1M",
-  step: [
-    {
-      "@type": "HowToStep",
-      name: "Load your PDFs",
-      text: "Drag PDF files onto the upload zone or paste PDF URLs into the URL input. You can add up to 200 PDFs.",
-      position: 1,
-    },
-    {
-      "@type": "HowToStep",
-      name: "Enter your search query",
-      text: "Type the word, phrase, or number you want to find. Enable case-sensitive or whole-word options if needed.",
-      position: 2,
-    },
-    {
-      "@type": "HowToStep",
-      name: "View highlighted results",
-      text: "Results appear instantly grouped by file, with page numbers and highlighted matching text. Export as CSV to save your results.",
-      position: 3,
     },
   ],
 };

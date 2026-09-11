@@ -3,16 +3,16 @@ import Link from "next/link";
 import { LandingPageShell } from "@/components/LandingPageShell";
 
 export const metadata: Metadata = {
-  title: "Bulk PDF Search — Search Thousands of PDF Files at Once",
+  title: "Bulk PDF Search — Search a Whole Folder or Archive of PDFs",
   description:
-    "Search across hundreds of PDF files simultaneously. Free bulk PDF search tool — upload a large collection of PDFs or paste URLs and run full-text search across all of them instantly.",
+    "Search an entire folder or archive of PDFs in one pass. Load up to 200 documents by file or URL pattern, then run one query across every page — built for batch review workflows.",
   alternates: {
     canonical: "https://www.pdfsearch.info/bulk-pdf-search",
   },
   openGraph: {
-    title: "Bulk PDF Search — Search Thousands of PDF Files at Once",
+    title: "Bulk PDF Search — Search a Whole Folder or Archive of PDFs",
     description:
-      "Bulk PDF search — load hundreds of documents and search them all at once. Free, instant, 100% private.",
+      "Batch-search an entire folder or numbered URL range of PDFs in one pass. Free, instant, 100% private.",
     url: "https://www.pdfsearch.info/bulk-pdf-search",
   },
 };
@@ -52,9 +52,9 @@ const faqSchema = {
 export default function BulkPdfSearchPage() {
   return (
     <LandingPageShell
-      headline="Bulk PDF Search — Search Hundreds of Documents at Once"
-      subheadline="Load your entire PDF collection and run one search across all of them simultaneously."
-      description="PDFSearch is purpose-built for bulk document search. Whether you have a folder of contracts, a library of research papers, or an archive of reports — load them all and search across every page with a single query. Perfect for legal, compliance, research, and document-heavy workflows."
+      headline="Bulk PDF Search — Batch-Search an Entire Folder"
+      subheadline="Built for batch workflows: load a whole folder, or a numbered range of URLs, and work through the results in one pass."
+      description="Bulk search is a different job from searching a handful of files. It means getting a whole archive in at once — a folder of contracts, a numbered run of filings, a scanned record series — then working through the results systematically. PDFSearch handles the loading (select a folder, or generate a numbered URL range), the scale (up to 200 documents per pass), and the export (CSV of every match with its page number)."
       benefits={[
         "Up to 200 PDFs per session",
         "Parallel search processing",
@@ -125,7 +125,7 @@ export default function BulkPdfSearchPage() {
         </section>
       }
       relatedTools={[
-        { href: "/search-multiple-pdfs", title: "Search Multiple PDFs", description: "One query across a set of documents, grouped by file." },
+        { href: "/search-multiple-pdfs", title: "Search Multiple PDFs", description: "Searching a handful of files rather than a whole archive? Start here." },
         { href: "/free-pdf-search-engine", title: "Free PDF Search Engine", description: "A private search engine for your own document library." },
         { href: "/pdf-search-for-lawyers", title: "PDF Search for Lawyers", description: "Search discovery batches and contracts confidentially." },
       ]}

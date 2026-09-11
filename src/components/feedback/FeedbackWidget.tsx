@@ -110,6 +110,22 @@ export function FeedbackWidget() {
                 </option>
               ))}
             </select>
+            {/* Surfaced only for feature requests — the roadmap is irrelevant
+                noise when someone is reporting a bug. */}
+            {category === "feature" && (
+              <p className="font-mono text-[10px] text-[var(--text-3)] mt-2 leading-relaxed">
+                Someone may have asked already —{" "}
+                <a
+                  href="/roadmap"
+                  className="text-[var(--accent)] hover:underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  check the roadmap
+                </a>{" "}
+                and add your vote.
+              </p>
+            )}
           </div>
 
           <div>

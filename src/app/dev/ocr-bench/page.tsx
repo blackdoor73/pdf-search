@@ -119,7 +119,6 @@ export default function OcrBenchPage() {
     const searchOpts = {
       caseSensitive: false,
       wholeWord: false,
-      showContext: true,
       concurrency: computeConcurrency(totalBytes, files.length),
       ocr: true,
       textCache,

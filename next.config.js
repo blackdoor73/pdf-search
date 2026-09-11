@@ -16,9 +16,18 @@ const nextConfig = {
         ],
       },
       {
-        // Cache SEO/content pages for 1 hour at CDN edge
+        // Cache SEO/content pages for 1 hour at CDN edge.
+        //
+        // Kept in sync BY HAND with src/lib/seo/pages.ts — this file is
+        // CommonJS and loaded before the TS build, so it cannot import the
+        // registry. Adding a page there means adding it here too, or the page
+        // silently loses edge caching.
+        //
+        // /roadmap is deliberately absent: its vote counts change, and it
+        // sets its own revalidate. A one-hour edge cache on top would make a
+        // fresh vote appear to vanish on reload.
         source:
-          "/(how-to-search-pdf|search-multiple-pdfs|pdf-search-online|search-text-in-pdf|find-words-in-pdf|free-pdf-search-engine|search-scanned-pdf|bulk-pdf-search|search-government-documents|search-technical-manuals|pdf-search-for-students|pdf-search-for-researchers|pdf-search-for-lawyers|pdf-search-for-finance|pdf-search-for-recruiters|pdf-search-for-engineers|blog|changelog)(.*)",
+          "/(how-to-search-pdf|search-multiple-pdfs|pdf-search-online|search-text-in-pdf|find-words-in-pdf|free-pdf-search-engine|search-scanned-pdf|bulk-pdf-search|search-government-documents|search-technical-manuals|pdf-search-for-students|pdf-search-for-researchers|pdf-search-for-lawyers|pdf-search-for-finance|pdf-search-for-recruiters|pdf-search-for-engineers|blog|changelog|about|support|contact|privacy|terms)(.*)",
         headers: [
           { key: "Cache-Control", value: "public, s-maxage=3600, stale-while-revalidate=86400" },
         ],
@@ -41,12 +50,18 @@ const nextConfig = {
             // only when their NEXT_PUBLIC_* env vars are set.
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: https://www.googletagmanager.com https://www.clarity.ms",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: https://www.googletagmanager.com https://www.clarity.ms https://pagead2.googlesyndication.com https://partner.googleadservices.com https://tpc.googlesyndication.com https://www.google.com https://*.adtrafficquality.google",
               "style-src 'self' 'unsafe-inline'",
               "font-src 'self' data:",
-              "img-src 'self' data: blob: https://*.google-analytics.com https://www.googletagmanager.com https://*.clarity.ms",
+              "img-src 'self' data: blob: https://*.google-analytics.com https://www.googletagmanager.com https://*.clarity.ms https://pagead2.googlesyndication.com https://tpc.googlesyndication.com https://*.doubleclick.net https://www.google.com https://*.adtrafficquality.google",
               "worker-src 'self' blob:",
-              "connect-src 'self' https://*.google-analytics.com https://www.googletagmanager.com https://*.clarity.ms",
+              "connect-src 'self' https://*.google-analytics.com https://www.googletagmanager.com https://*.clarity.ms https://pagead2.googlesyndication.com https://*.doubleclick.net https://*.adtrafficquality.google https://*.googlesyndication.com",
+              // Ad creatives render inside iframes served by these hosts.
+              // Without frame-src they are blocked and every slot stays blank.
+              "frame-src https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://www.google.com https://*.adtrafficquality.google",
+              // Unchanged: nobody may frame US. This is the protection that
+              // X-Frame-Options provides, and it is unrelated to frame-src
+              // above, which governs what WE may embed.
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

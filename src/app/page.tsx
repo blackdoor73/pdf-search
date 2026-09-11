@@ -14,7 +14,7 @@ import { useToast } from "@/components/ui/Toast";
 import { WhatsNew } from "@/components/WhatsNew";
 import { ShortcutsOverlay } from "@/components/ShortcutsOverlay";
 import { track } from "@/lib/analytics/client";
-import { homepageFaqSchema, homepageHowToSchema } from "./seo-schemas";
+import { homepageFaqSchema } from "./seo-schemas";
 import type { SearchResult } from "@/types";
 
 // Lazy-load below-fold and conditional components to reduce initial bundle / TBT
@@ -27,6 +27,7 @@ const PrivacyBadge = dynamic(() => import("@/components/ui/PrivacyBadge").then(m
 const EmptyState = dynamic(() => import("@/components/ui/EmptyState").then(m => ({ default: m.EmptyState })));
 const OcrProgressList = dynamic(() => import("@/components/search/OcrProgress").then(m => ({ default: m.OcrProgressList })));
 const IssueReportButton = dynamic(() => import("@/components/feedback/IssueReportButton").then(m => ({ default: m.IssueReportButton })));
+const AdRail = dynamic(() => import("@/components/ads/AdRail").then(m => ({ default: m.AdRail })), { ssr: false });
 
 const faqs = [
   {
@@ -241,14 +242,12 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg)] grid-bg">
-      {/* ── Homepage-only JSON-LD schemas (FAQ + HowTo) ── */}
+      {/* ── Homepage-only JSON-LD (FAQ). The HowTo lives on /how-to-search-pdf,
+          which carries the richer version — two copies competed for the same
+          rich result. ── */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageFaqSchema) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageHowToSchema) }}
       />
 
       {/* ── Skip-to-content (accessibility) ── */}
@@ -301,7 +300,12 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* ── Main ── */}
+      {/* ── Main ──
+          The wrapper is the positioning context for the ad rail, which sits
+          in the empty right margin beside the max-w-5xl column. The column
+          itself is untouched, so turning ads on never reflows the tool. ── */}
+      <div className="relative">
+      <AdRail />
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
 
         {/* Hero */}
@@ -660,6 +664,7 @@ export default function HomePage() {
         </section>
 
       </main>
+      </div>
 
       {/* Footer */}
       <footer className="border-t border-[var(--border)] mt-16">
