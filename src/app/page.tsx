@@ -27,6 +27,7 @@ const PrivacyBadge = dynamic(() => import("@/components/ui/PrivacyBadge").then(m
 const EmptyState = dynamic(() => import("@/components/ui/EmptyState").then(m => ({ default: m.EmptyState })));
 const OcrProgressList = dynamic(() => import("@/components/search/OcrProgress").then(m => ({ default: m.OcrProgressList })));
 const IssueReportButton = dynamic(() => import("@/components/feedback/IssueReportButton").then(m => ({ default: m.IssueReportButton })));
+const AdRail = dynamic(() => import("@/components/ads/AdRail").then(m => ({ default: m.AdRail })), { ssr: false });
 
 const faqs = [
   {
@@ -299,7 +300,12 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* ── Main ── */}
+      {/* ── Main ──
+          The wrapper is the positioning context for the ad rail, which sits
+          in the empty right margin beside the max-w-5xl column. The column
+          itself is untouched, so turning ads on never reflows the tool. ── */}
+      <div className="relative">
+      <AdRail />
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
 
         {/* Hero */}
@@ -658,6 +664,7 @@ export default function HomePage() {
         </section>
 
       </main>
+      </div>
 
       {/* Footer */}
       <footer className="border-t border-[var(--border)] mt-16">

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
+import { AdScript } from "@/components/ads/AdScript";
 import { Analytics } from "@/components/Analytics";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { siteUrl } from "@/lib/seo/site";
@@ -183,6 +184,7 @@ export default function RootLayout({
           <FeedbackWidget />
         </ToastProvider>
         <Analytics />
+        <AdScript />
       </body>
     </html>
   );

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ContentPage } from "@/components/seo/ContentPage";
 import { absUrl } from "@/lib/seo/site";
+import { AdPreference } from "@/components/ads/AdPreference";
 
 export const metadata: Metadata = {
   title: "Support PDFSearch",
@@ -96,11 +97,22 @@ export default function SupportPage() {
 
       <h2>On advertising</h2>
       <p>
-        There are currently <strong>no ads on this site</strong>. If that changes, it will be
-        one unobtrusive placement alongside the tool — never inside your search results, never
-        on mobile, and never an ad that interrupts you. You will be able to turn it off, and
-        the <Link href="/privacy">privacy policy</Link> will be updated before anything is
-        loaded.
+        If ads are running, it is <strong>one placement in the right margin on wide screens</strong>
+        — never inside your search results, never on mobile, and never anything that interrupts
+        you. The space it occupies is reserved whether or not an ad loads, so the page does not
+        jump around.
+      </p>
+      <p>
+        You can switch it off below, and switching it off means the ad script is never
+        downloaded — not merely hidden. It is an honour-system setting: there is no check that
+        you support the project, because building one would cost more than it is worth.
+      </p>
+
+      <AdPreference />
+
+      <p>
+        What is collected either way is described in the{" "}
+        <Link href="/privacy">privacy policy</Link>.
       </p>
 
       <h2>Using PDFSearch at work</h2>

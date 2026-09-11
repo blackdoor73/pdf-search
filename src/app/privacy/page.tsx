@@ -123,10 +123,8 @@ export default function PrivacyPage() {
 
       <h2>Cookies and local storage</h2>
       <p>
-        We use a small number of first-party cookies and browser storage entries. There are no
-        third-party advertising cookies on this site today. If that ever changes, this page
-        will be updated first and visitors in regions that require consent will be asked
-        before any such cookie is set.
+        We use a small number of first-party cookies and browser storage entries, listed in
+        full below. Advertising, where it runs, is covered in its own section further down.
       </p>
       <table>
         <thead>
@@ -177,6 +175,12 @@ export default function PrivacyPage() {
             <td>Remembers which updates you have already read</td>
             <td>Until cleared</td>
           </tr>
+          <tr>
+            <td>pdfsearch:ads</td>
+            <td>Local storage</td>
+            <td>Remembers that you switched advertising off</td>
+            <td>Until cleared</td>
+          </tr>
         </tbody>
       </table>
 
@@ -185,10 +189,53 @@ export default function PrivacyPage() {
         We use <strong>Google Analytics</strong> and <strong>Microsoft Clarity</strong> to
         measure traffic and spot usability problems, with IP anonymisation enabled. Analytics
         data is stored in a <strong>Neon</strong> database, the site is hosted on{" "}
-        <strong>Vercel</strong>, and feedback notifications are delivered by{" "}
-        <strong>Resend</strong>. These providers process the data described above on our
+        <strong>Vercel</strong>, feedback notifications are delivered by{" "}
+        <strong>Resend</strong>, and advertising — when enabled — is served by{" "}
+        <strong>Google AdSense</strong>. These providers process the data described above on our
         behalf. They never receive your PDF files, because your PDF files never leave your
         browser.
+      </p>
+
+      <h2>Advertising</h2>
+      <p>
+        PDFSearch may show <strong>a single advertisement in the right margin on wide desktop
+        screens</strong>, supplied by Google AdSense. There is never an ad on mobile, never one
+        inside your search results, and never a pop-up or interstitial.
+      </p>
+      <p>
+        Where an ad is shown, Google may set its own cookies and use them to measure and
+        personalise advertising. Google&apos;s use of data is described in its{" "}
+        <a
+          href="https://policies.google.com/technologies/partner-sites"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          partner-sites policy
+        </a>
+        , and you can control personalisation at{" "}
+        <a
+          href="https://myadcenter.google.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google My Ad Center
+        </a>
+        .
+      </p>
+      <p>
+        <strong>Advertisers never receive your documents.</strong> Your PDFs are not uploaded
+        anywhere, so there is nothing about their contents for an ad network to see.
+      </p>
+      <p>
+        You can switch advertising off at any time on the{" "}
+        <Link href="/support">support page</Link>, or from the link beneath the ad itself. When
+        it is off, <strong>the advertising script is not loaded at all</strong> — it is not
+        merely hidden — so no ad cookies are set and no request is made to an ad server.
+      </p>
+      <p>
+        Visitors in the EEA, the UK, and Switzerland are asked for consent before any
+        personalised advertising cookie is set, through a consent tool certified by Google. You
+        can change that choice at any time from the same support page.
       </p>
 
       <h2>How to opt out</h2>
@@ -197,6 +244,10 @@ export default function PrivacyPage() {
           Enable <strong>Do Not Track</strong> or <strong>Global Privacy Control</strong> in
           your browser. We check both, and analytics stop entirely — no configuration needed
           on our side.
+        </li>
+        <li>
+          Turn advertising off on the <Link href="/support">support page</Link>. The ad script
+          is then never downloaded.
         </li>
         <li>Use a content blocker. We do not attempt to detect or defeat them.</li>
         <li>
