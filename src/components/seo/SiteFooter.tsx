@@ -12,7 +12,7 @@ export function SiteFooter() {
     { heading: "Tools", links: pagesByGroup("tool") },
     { heading: "For your work", links: pagesByGroup("persona") },
     { heading: "Guides", links: pagesByGroup("guide") },
-    { heading: "Product", links: pagesByGroup("product") },
+    { heading: "Product", links: [...pagesByGroup("product"), ...pagesByGroup("legal")] },
   ].filter((c) => c.links.length > 0);
 
   return (

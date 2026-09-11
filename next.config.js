@@ -16,9 +16,18 @@ const nextConfig = {
         ],
       },
       {
-        // Cache SEO/content pages for 1 hour at CDN edge
+        // Cache SEO/content pages for 1 hour at CDN edge.
+        //
+        // Kept in sync BY HAND with src/lib/seo/pages.ts — this file is
+        // CommonJS and loaded before the TS build, so it cannot import the
+        // registry. Adding a page there means adding it here too, or the page
+        // silently loses edge caching.
+        //
+        // /roadmap is deliberately absent: its vote counts change, and it
+        // sets its own revalidate. A one-hour edge cache on top would make a
+        // fresh vote appear to vanish on reload.
         source:
-          "/(how-to-search-pdf|search-multiple-pdfs|pdf-search-online|search-text-in-pdf|find-words-in-pdf|free-pdf-search-engine|search-scanned-pdf|bulk-pdf-search|search-government-documents|search-technical-manuals|pdf-search-for-students|pdf-search-for-researchers|pdf-search-for-lawyers|pdf-search-for-finance|pdf-search-for-recruiters|pdf-search-for-engineers|blog|changelog)(.*)",
+          "/(how-to-search-pdf|search-multiple-pdfs|pdf-search-online|search-text-in-pdf|find-words-in-pdf|free-pdf-search-engine|search-scanned-pdf|bulk-pdf-search|search-government-documents|search-technical-manuals|pdf-search-for-students|pdf-search-for-researchers|pdf-search-for-lawyers|pdf-search-for-finance|pdf-search-for-recruiters|pdf-search-for-engineers|blog|changelog|about|support|contact|privacy|terms)(.*)",
         headers: [
           { key: "Cache-Control", value: "public, s-maxage=3600, stale-while-revalidate=86400" },
         ],

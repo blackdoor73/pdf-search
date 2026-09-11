@@ -59,7 +59,6 @@ const INITIAL_SEARCH_STATE: SearchState = {
 const DEFAULT_SEARCH_OPTIONS: SearchOptions = {
   caseSensitive: false,
   wholeWord: false,
-  showContext: true,
 };
 
 // ─── Per-document metadata telemetry ──────────────────────────────────────────

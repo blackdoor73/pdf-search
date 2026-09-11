@@ -47,6 +47,8 @@ export const EVENT_NAMES = [
   /** OCR failed. Props: stage, message, pageNum, pagesDone. */
   "ocr_error",
   "export_csv",
+  /** A vote was cast on the public roadmap. Props: slug. */
+  "roadmap_vote",
   "client_error",
   "web_vital",
 ] as const;

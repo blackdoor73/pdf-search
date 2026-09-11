@@ -14,7 +14,7 @@ import { useToast } from "@/components/ui/Toast";
 import { WhatsNew } from "@/components/WhatsNew";
 import { ShortcutsOverlay } from "@/components/ShortcutsOverlay";
 import { track } from "@/lib/analytics/client";
-import { homepageFaqSchema, homepageHowToSchema } from "./seo-schemas";
+import { homepageFaqSchema } from "./seo-schemas";
 import type { SearchResult } from "@/types";
 
 // Lazy-load below-fold and conditional components to reduce initial bundle / TBT
@@ -241,14 +241,12 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg)] grid-bg">
-      {/* ── Homepage-only JSON-LD schemas (FAQ + HowTo) ── */}
+      {/* ── Homepage-only JSON-LD (FAQ). The HowTo lives on /how-to-search-pdf,
+          which carries the richer version — two copies competed for the same
+          rich result. ── */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageFaqSchema) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageHowToSchema) }}
       />
 
       {/* ── Skip-to-content (accessibility) ── */}

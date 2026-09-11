@@ -161,4 +161,43 @@ async function migrate(): Promise<void> {
   await sql`ALTER TABLE feedback ADD COLUMN IF NOT EXISTS diagnostics JSONB`;
   await sql`CREATE INDEX IF NOT EXISTS feedback_ts_idx ON feedback (ts DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS feedback_status_ts_idx ON feedback (status, ts DESC)`;
+
+  // Public roadmap. Rows are ADMIN-CURATED: promoted out of the feedback
+  // inbox rather than submitted directly. An open submission form on a
+  // no-auth site is a spam magnet, and the feedback widget already collects
+  // requests. status drives which section of /roadmap a row appears in.
+  await sql`
+    CREATE TABLE IF NOT EXISTS feature_requests (
+      id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+      slug        TEXT NOT NULL UNIQUE,
+      title       TEXT NOT NULL,
+      description TEXT,
+      status      TEXT NOT NULL DEFAULT 'considering',
+      sort_order  INT NOT NULL DEFAULT 0,
+      published   BOOLEAN NOT NULL DEFAULT true
+    )
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS feature_requests_published_idx
+    ON feature_requests (published, status)
+  `;
+
+  // One vote per visitor per feature. The unique constraint is what enforces
+  // it — ON CONFLICT DO NOTHING makes a repeated vote a no-op rather than an
+  // error, so a double-tap or a retried request cannot inflate the count.
+  await sql`
+    CREATE TABLE IF NOT EXISTS feature_votes (
+      id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      ts         TIMESTAMPTZ NOT NULL DEFAULT now(),
+      feature_id BIGINT NOT NULL REFERENCES feature_requests (id) ON DELETE CASCADE,
+      anon_id    TEXT NOT NULL,
+      ip_hash    TEXT,
+      country    TEXT
+    )
+  `;
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS feature_votes_unique
+    ON feature_votes (feature_id, anon_id)
+  `;
 }

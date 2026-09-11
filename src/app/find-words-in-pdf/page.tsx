@@ -3,16 +3,16 @@ import Link from "next/link";
 import { LandingPageShell } from "@/components/LandingPageShell";
 
 export const metadata: Metadata = {
-  title: "Find Words in PDF Online Free — PDF Word Search Tool",
+  title: "Find Every Occurrence of a Word in a PDF — With Page Numbers",
   description:
-    "Find any word in a PDF instantly. Free online tool to search and highlight words across single or multiple PDF files. No account, no software — works in your browser.",
+    "See every place a word appears in a PDF — each occurrence highlighted in context, with its page number and a total match count. Free, no account, runs in your browser.",
   alternates: {
     canonical: "https://www.pdfsearch.info/find-words-in-pdf",
   },
   openGraph: {
-    title: "Find Words in PDF Online Free — PDF Word Search Tool",
+    title: "Find Every Occurrence of a Word in a PDF — With Page Numbers",
     description:
-      "Free tool to find any word in a PDF instantly. Search single or multiple PDFs at once. 100% private.",
+      "List every place a word appears in a PDF, with page numbers and a match count. Free and 100% private.",
     url: "https://www.pdfsearch.info/find-words-in-pdf",
   },
 };
@@ -52,9 +52,9 @@ const faqSchema = {
 export default function FindWordsInPdfPage() {
   return (
     <LandingPageShell
-      headline="Find Any Word in a PDF — Free Online Tool"
-      subheadline="Search for words, phrases, or numbers across any PDF file. Instant results, zero downloads."
-      description="PDFSearch is the fastest way to find words in a PDF online. Whether you need to locate a specific term in a legal document, find a keyword in a research paper, or search a company report — get instant highlighted results with page numbers."
+      headline="Find Every Occurrence of a Word in a PDF"
+      subheadline="Not just the first match — every one, listed in context with its page number and a running count."
+      description="Ctrl+F jumps to one match at a time, so you never see the whole picture. PDFSearch lists every occurrence at once — each line highlighted in context, labelled with its page number, and counted per file. That makes it the right tool when the question is “how often” or “where exactly”, not just “is it in here”: auditing a term across a contract, checking how many times a defined term is used, or exporting every hit to CSV."
       benefits={[
         "Highlights every match",
         "Shows page number & context",
@@ -124,7 +124,7 @@ export default function FindWordsInPdfPage() {
         </section>
       }
       relatedTools={[
-        { href: "/search-text-in-pdf", title: "Search Text in PDF", description: "Precision lookups with case and whole-word modes." },
+        { href: "/search-text-in-pdf", title: "Search Text in PDF", description: "Just need to find one thing fast? Precision lookups with case and whole-word modes." },
         { href: "/pdf-search-for-students", title: "PDF Search for Students", description: "Textbooks, lecture notes, exam prep." },
         { href: "/how-to-search-pdf", title: "How to Search a PDF", description: "Start-to-finish basics." },
       ]}

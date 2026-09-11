@@ -300,19 +300,6 @@ export function SearchBar({
             </span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer group">
-            <input
-              type="checkbox"
-              checked={options.showContext}
-              onChange={(e) =>
-                onOptionsChange({ ...options, showContext: e.target.checked })
-              }
-              className="accent-[var(--accent)] w-3.5 h-3.5"
-            />
-            <span className="font-mono text-xs text-[var(--text-3)] group-hover:text-[var(--text-2)] transition-colors">
-              Show surrounding context
-            </span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer group">
             <span className="font-mono text-xs text-[var(--text-3)] group-hover:text-[var(--text-2)] transition-colors">
               OCR language
             </span>

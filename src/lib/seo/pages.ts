@@ -7,7 +7,7 @@
  * every URL tells crawlers nothing).
  */
 
-export type PageGroup = "tool" | "persona" | "guide" | "product";
+export type PageGroup = "tool" | "persona" | "guide" | "product" | "legal";
 
 export interface PublicPage {
   path: string;
@@ -81,7 +81,7 @@ export const publicPages: PublicPage[] = [
     title: "Search Scanned PDFs",
     shortDescription: "What works (and what doesn't) when PDFs are scans.",
     group: "tool",
-    lastModified: "2026-07-23",
+    lastModified: "2026-08-13",
     changeFrequency: "monthly",
     priority: 0.8,
   },
@@ -229,7 +229,7 @@ export const publicPages: PublicPage[] = [
     title: "How to Search Scanned PDFs",
     shortDescription: "The text-layer test and a practical OCR pipeline.",
     group: "guide",
-    lastModified: "2026-07-23",
+    lastModified: "2026-08-13",
     changeFrequency: "monthly",
     priority: 0.65,
   },
@@ -240,9 +240,68 @@ export const publicPages: PublicPage[] = [
     title: "Changelog",
     shortDescription: "What's new in PDFSearch — recent updates and fixes.",
     group: "product",
-    lastModified: "2026-07-23",
+    lastModified: "2026-09-11",
     changeFrequency: "weekly",
     priority: 0.5,
+  },
+  {
+    path: "/roadmap",
+    title: "Roadmap",
+    shortDescription: "What's planned next — and vote on what matters to you.",
+    group: "product",
+    lastModified: "2026-09-11",
+    changeFrequency: "weekly",
+    priority: 0.5,
+  },
+
+  // ── Legal & about ─────────────────────────────────────────────────────
+  // Low priority by design: these must be indexable and reachable (ad
+  // networks and privacy regulators both expect them) but should never
+  // outrank the tool pages.
+  {
+    path: "/about",
+    title: "About",
+    shortDescription: "Why PDFSearch runs in your browser, and who builds it.",
+    group: "legal",
+    lastModified: "2026-09-11",
+    changeFrequency: "yearly",
+    priority: 0.4,
+  },
+  {
+    path: "/support",
+    title: "Support PDFSearch",
+    shortDescription: "Ways to help keep a free tool running.",
+    group: "legal",
+    lastModified: "2026-09-11",
+    changeFrequency: "yearly",
+    priority: 0.4,
+  },
+  {
+    path: "/contact",
+    title: "Contact",
+    shortDescription: "Bug reports, feature requests, and business enquiries.",
+    group: "legal",
+    lastModified: "2026-09-11",
+    changeFrequency: "yearly",
+    priority: 0.3,
+  },
+  {
+    path: "/privacy",
+    title: "Privacy Policy",
+    shortDescription: "What is collected, what never is, and how to opt out.",
+    group: "legal",
+    lastModified: "2026-09-11",
+    changeFrequency: "yearly",
+    priority: 0.3,
+  },
+  {
+    path: "/terms",
+    title: "Terms of Service",
+    shortDescription: "The terms for using PDFSearch, in plain language.",
+    group: "legal",
+    lastModified: "2026-09-11",
+    changeFrequency: "yearly",
+    priority: 0.3,
   },
 ];
 

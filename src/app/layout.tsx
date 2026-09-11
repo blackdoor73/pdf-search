@@ -39,21 +39,13 @@ export const metadata: Metadata = {
   },
   description:
     "Search across multiple PDF files simultaneously — free, instant, and 100% private. Upload PDFs or paste URLs and find any word or phrase in seconds. No signup required.",
+  // Google ignores this tag; Bing and others treat a long near-duplicate list
+  // as a spam signal. Kept short and distinct rather than removed outright.
   keywords: [
-    "search in PDF",
     "PDF search tool",
-    "search text inside PDF",
-    "find words in PDF online",
-    "search across multiple PDFs",
-    "free PDF search engine",
-    "document search tool",
-    "search PDF online free",
-    "PDF text search",
-    "full text search PDF",
-    "search multiple PDF files",
-    "PDF word search",
-    "find text in PDF",
-    "online PDF search",
+    "search multiple PDFs",
+    "search text in PDF",
+    "search scanned PDF",
   ],
   authors: [{ name: "PDFSearch", url: siteUrl }],
   creator: "PDFSearch",
@@ -69,8 +61,11 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
+  // Relative, NOT the bare origin: resolved against metadataBase, this makes
+  // an un-overridden page canonicalize to itself rather than to the homepage.
+  // Every child page still sets its own; this is the safe default beneath them.
   alternates: {
-    canonical: siteUrl,
+    canonical: "./",
   },
   openGraph: {
     type: "website",
